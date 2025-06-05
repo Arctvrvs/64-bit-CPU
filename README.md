@@ -5,6 +5,7 @@ This repository contains an open source implementation of a high performance
 `rtl/` directory with documentation in `docs/`.
 
 Implemented modules so far:
+- `golden_model` – minimal Python reference model
 - `pc_fetch` – program counter generation for instruction fetch
 - `l1_icache_64k_8w` – placeholder for the L1 instruction cache
 - `if_buffer_16` – FIFO buffer between fetch and decode
