@@ -31,6 +31,11 @@ module cpu64_pipelined (
     wire        stall;
     wire [4:0]  ex_rs1_hz, ex_rs2_hz, ex_rd_hz;
     wire        ex_mem_read_hz;
+
+    // Branch prediction
+    wire        bp_predict_taken;
+    reg         bp_taken_r;
+    reg [63:0]  bp_target_r;
     
     // Wires feeding ID/EX register
     wire [63:0] ex_pc_plus4;
@@ -69,6 +74,20 @@ module cpu64_pipelined (
         .stall        (stall)
     );
 
+    // Branch predictor
+    wire [63:0] id_imm64 = {{48{id_imm16[15]}}, id_imm16};
+    wire [63:0] bp_target_id = id_pc_plus4 + (id_imm64 << 2);
+    branch_predictor bp_u (
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .pc_fetch     (id_pc_plus4 - 64'd4),
+        .update_valid (mem_branch),
+        .update_taken (mem_zero),
+        .update_pc    (mem_pc_plus4 - 64'd4),
+        .predict_taken(bp_predict_taken)
+    );
+    wire bp_taken_id = id_branch & bp_predict_taken;
+
     // Forwarding Unit in EX
     wire [1:0] forwardA, forwardB;
     forward_unit fu_u (
@@ -91,8 +110,13 @@ module cpu64_pipelined (
         if (!rst_n) begin
             PC <= 64'b0;
         end else if (!stall) begin
-            // If no stall, update PC; if stall, keep same PC
-            PC <= (mem_branch && mem_zero) ? mem_branch_target : (PC + 64'd4);
+            if (mem_branch) begin
+                PC <= mem_zero ? mem_branch_target : mem_pc_plus4;
+            end else if (bp_taken_r) begin
+                PC <= bp_target_r;
+            end else begin
+                PC <= PC + 64'd4;
+            end
         end
     end
 
@@ -190,6 +214,17 @@ module cpu64_pipelined (
     assign ex_rd_hz       = ex_rd;
     assign ex_rs1_hz      = ex_rs1;
     assign ex_rs2_hz      = ex_rs2;
+
+    // Capture branch prediction for next cycle
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            bp_taken_r  <= 1'b0;
+            bp_target_r <= 64'b0;
+        end else if (!stall) begin
+            bp_taken_r  <= bp_taken_id;
+            bp_target_r <= bp_target_id;
+        end
+    end
 
     // ----------------------------------------------------------------
     // 3) EX Stage: ALU, Forwarding, EX/MEM register
