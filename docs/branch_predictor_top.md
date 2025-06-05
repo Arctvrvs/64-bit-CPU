@@ -4,9 +4,11 @@
 stack buffer, a BTB, a small TAGE predictor and an indirect branch predictor.
 The module selects the next PC based on instruction type information from the
 decode stage and receives update information when branches retire.
+
 `branch_predictor_top.sv` implements a tiny branch prediction unit. It keeps a
 small branch target buffer (BTB) indexed by bits of the program counter and a
 2‑bit saturating counter per entry.
+
 
 ## Parameters
 
@@ -52,6 +54,7 @@ The predictor chooses the next PC using the following priority:
 On branch retirement the BTB, TAGE and IBP tables are updated with the actual
 outcome and target. Calls push the return address onto the RSB and returns pop
 it.
+
 | `pc_i` | in | 64 | Program counter for lookup |
 | `predicted_taken_o` | out | 1 | Predicted taken flag |
 | `predicted_target_o` | out | 64 | Predicted target address |

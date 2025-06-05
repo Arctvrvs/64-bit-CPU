@@ -10,6 +10,7 @@ Module documentation:
 - [decoder8w](decoder8w.md)
 - [arch_regfile_32x64](arch_regfile_32x64.md)
 - [phys_regfile_128x64](phys_regfile_128x64.md)
+- [csr_file](csr_file.md)
 - [rename_unit_8wide](rename_unit_8wide.md)
 - [rob256](rob256.md)
 - [issue_queue_8wide](issue_queue_8wide.md)
@@ -40,4 +41,3 @@ Module documentation:
 - [vmcs](vmcs.md)
 - [ept](ept.md)
 - [nx_check](nx_check.md)
-- [branch_unit](branch_unit.md)

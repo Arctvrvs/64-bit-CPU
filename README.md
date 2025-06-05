@@ -12,6 +12,7 @@ Implemented modules so far:
 - `decoder8w` – 8-wide instruction decoder placeholder
 - `arch_regfile_32x64` – 32×64-bit architectural register file
 - `phys_regfile_128x64` – 128×64-bit physical register file
+- `csr_file` – simple control and status register block
 - `rename_unit_8wide` – simple rename unit with free list
 - `rob256` – reorder buffer placeholder
 - `issue_queue_8wide` – small issue queue for early testing
@@ -46,6 +47,5 @@ Implemented modules so far:
 - `muldiv_unit` – pipelined multiply/divide unit
 - `branch_unit` – resolves branches and detects mispredictions
 - `amo_unit` – executes basic atomic operations
-
 
 Development follows the tasks outlined in `docs/tasks/cpu.txt`.

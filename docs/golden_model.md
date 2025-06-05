@@ -11,8 +11,6 @@ Currently supported instructions include:
   `SLL`, `SRL`, `SRA`, `ADDI`, `ANDI`, `ORI`, `XORI`,
   `SLLI`, `SRLI`, `SRAI`, `LUI`, `AUIPC`)
 - Load/store (`LW`/`LD`, `SW`/`SD` simplified as 64‑bit accesses)
-- Integer ALU operations (`ADD`, `SUB`, `ADDI`)
-- Load/store (`LW`, `SW` simplified as 64‑bit accesses)
 - Branches (`BEQ`, `BNE`, `BLT`, `BGE`, `BLTU`, `BGEU`)
 - Jumps (`JAL`, `JALR`)
 - Multiply/divide (`MUL`, `DIV`, `REM` and variants)
