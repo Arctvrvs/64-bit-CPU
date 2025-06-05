@@ -24,7 +24,8 @@ incorporates building blocks for:
 
 - Out-of-order issue using a simple issue queue and reorder buffer
 - Register renaming to eliminate false dependencies
-- A placeholder high-accuracy branch predictor (`branch_predictor_advanced.v`)
+- An improved branch predictor with a small counter-based BHT and BTB
+  (`branch_predictor_advanced.v`)
 - Multi-level cache hierarchy and MMU stubs
 - Hooks for wide SIMD/vector execution units
 
