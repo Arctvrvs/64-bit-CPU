@@ -51,3 +51,28 @@ vvp cpu64_tb
 
 The simulation will toggle the clock for a few hundred nanoseconds and
 then finish, demonstrating that the advanced CPU integrates cleanly.
+
+### Additional Features
+
+The most advanced core now contains fleshed out support modules.
+Several of the earlier placeholder components have been extended so the
+out-of-order CPU can perform a little more useful work:
+
+- `performance_counter.v` tracks cycles, retired instructions, memory
+  accesses, branch events, cache misses and pipeline stalls.
+- `debug_unit.v` prints each fetched instruction along with the current
+  cycle count and notes cache misses, branch outcomes and stall status.
+- `load_store_buffer.v` executes loads and stores out of order while
+  enforcing program order commit and includes simple dependency and
+  latency tracking.
+- `fpu_unit.v` implements a tiny pipelined datapath with IEEE operations
+  including conversions and fused multiply-add, plus basic exception
+  reporting.
+- `csr_unit.v` decodes CSR instructions, handles timer interrupts and
+  updates privilege level with rudimentary checks.
+- `issue_queue.v`, `reorder_buffer.v` and `register_rename.v` track
+  dependencies for dozens of in-flight instructions and broadcast operand
+  readiness.
+- `cache_hierarchy.v` contains a two-level cache with a rudimentary LRU
+  replacement policy while `mmu_unit.v` manages a larger TLB and reports
+  faults on illegal accesses.
