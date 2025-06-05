@@ -1,10 +1,9 @@
 # branch_predictor_top Module
 
 `branch_predictor_top.sv` integrates several prediction structures: a return
-stack buffer (RSB), a branch target buffer (BTB) with 2‑bit saturating
-counters, a small TAGE predictor and an indirect branch predictor. The module
-selects the next PC based on decode information and updates predictor state when
-branches retire.
+stack buffer (RSB), a branch target buffer (BTB) with 2‑bit saturating counters, a small TAGE predictor and an indirect branch predictor.
+A lightweight Python model is available in `rtl/bp/branch_predictor_top.py` for unit tests.
+The module selects the next PC based on decode information and updates predictor state when branches retire.
 
 
 ## Parameters

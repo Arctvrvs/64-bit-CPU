@@ -1,17 +1,33 @@
 class Scoreboard:
     """Simple scoreboard using the GoldenModel for reference checking."""
+
+    def __init__(self, start_pc=0, start_rob_idx=0, coverage=None):
+
     def __init__(self, start_pc=0):
+
         from rtl.isa.golden_model import GoldenModel
         self.gm = GoldenModel(pc=start_pc)
         self.trace = []
         self.cycle = 0
 
+        self.expected_rob_idx = start_rob_idx
+        self.coverage = coverage
+
+    def reset(self, pc=0, rob_idx=0):
+
+
     def reset(self, pc=0):
+
         """Clear state and restart the golden model."""
         from rtl.isa.golden_model import GoldenModel
         self.gm = GoldenModel(pc=pc)
         self.trace.clear()
         self.cycle = 0
+
+        self.expected_rob_idx = rob_idx
+        if self.coverage:
+            self.coverage.reset()
+
 
     def commit(self, instr, rd_arch=None, rd_val=None,
                is_store=False, store_addr=None, store_data=None,
@@ -19,7 +35,9 @@ class Scoreboard:
                next_pc=None, exception=None,
                branch_taken=None, branch_target=None,
                pred_taken=None, pred_target=None,
+               mispredict=None, rob_idx=None, *, increment_cycle=True):
                mispredict=None, *, increment_cycle=True):
+
         """Check a committed instruction.
 
         Parameters
@@ -56,12 +74,23 @@ class Scoreboard:
             Predictor target used by the RTL.
         mispredict : bool or None
             Branch misprediction indicator from the RTL.
+        rob_idx : int or None
+            Index of the instruction in the reorder buffer. If provided,
+            commit order is verified by expecting consecutive indices.
+
         Returns
         -------
         bool
             True if the RTL values match the golden model, False otherwise.
         """
         pc_before = self.gm.pc
+        opcode = instr & 0x7F
+        if self.coverage:
+            self.coverage.record_opcode(opcode)
+        self.gm.step(instr)
+        gm_exc = self.gm.get_last_exception()
+        if self.coverage and gm_exc is not None:
+            self.coverage.record_exception(gm_exc)
         self.gm.step(instr)
         gm_exc = self.gm.get_last_exception()
         opcode = instr & 0x7F
@@ -90,6 +119,23 @@ class Scoreboard:
             ok = False
         if branch_target is not None and branch_target != branch_target_gm:
             ok = False
+        calc_misp = False
+        if pred_taken is not None:
+            calc_misp |= pred_taken != branch_taken_gm
+        if branch_taken_gm and pred_target is not None:
+            calc_misp |= pred_target != branch_target_gm
+        if mispredict is not None:
+            if calc_misp != mispredict:
+                ok = False
+            mispred_flag = mispredict
+        else:
+            mispred_flag = calc_misp
+        if self.coverage and branch_instr:
+            self.coverage.record_branch(mispred_flag)
+        if rob_idx is not None:
+            if rob_idx != self.expected_rob_idx:
+                ok = False
+            self.expected_rob_idx = (rob_idx + 1) & 0xFFFFFFFF
         if mispredict is not None:
             calc_misp = False
             if pred_taken is not None:
@@ -114,7 +160,11 @@ class Scoreboard:
             "branch_target": branch_target_gm,
             "pred_taken": pred_taken,
             "pred_target": pred_target,
+            "mispredict": mispred_flag,
+            "rob_idx": rob_idx,
+
             "mispredict": mispredict,
+
         })
         return ok
 
@@ -148,6 +198,8 @@ class Scoreboard:
                 "pred_taken",
                 "pred_target",
                 "mispredict",
+
+                "rob_idx",
             ]
             f.write(",".join(header) + "\n")
             for entry in self.trace:
@@ -168,6 +220,7 @@ class Scoreboard:
                     entry.get("pred_taken"),
                     entry.get("pred_target"),
                     entry.get("mispredict"),
+                    entry.get("rob_idx"),
                 ]
                 f.write(",".join("" if v is None else str(v) for v in row) + "\n")
 
@@ -178,6 +231,7 @@ class Scoreboard:
                       next_pc_list=None, exception_list=None,
                       branch_taken_list=None, branch_target_list=None,
                       pred_taken_list=None, pred_target_list=None,
+                      mispredict_list=None, rob_idx_list=None):
                       mispredict_list=None):
         """Commit a bundle of instructions retiring in the same cycle.
 
@@ -192,6 +246,8 @@ class Scoreboard:
         pred_taken_list, pred_target_list,
         mispredict_list : list or None
             Per-instruction parameters analogous to :py:meth:`commit`.
+        rob_idx_list : list or None
+            ROB indices used to verify commit order.
 
         Returns
         -------
@@ -214,6 +270,7 @@ class Scoreboard:
         pred_taken_list = pred_taken_list or [None] * n
         pred_target_list = pred_target_list or [None] * n
         mispredict_list = mispredict_list or [None] * n
+        rob_idx_list = rob_idx_list or [None] * n
 
         current_cycle = self.cycle
         results = []
@@ -235,6 +292,7 @@ class Scoreboard:
                 pred_taken=pred_taken_list[i],
                 pred_target=pred_target_list[i],
                 mispredict=mispredict_list[i],
+                rob_idx=rob_idx_list[i],
                 increment_cycle=False,
             )
             # fix up the cycle for this trace entry to match the bundle cycle

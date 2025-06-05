@@ -20,5 +20,22 @@ class RenameUnitTest(unittest.TestCase):
         ru.free(res[0]['rd_phys'])
         self.assertEqual(ru.free_count(), 95)
 
+    def test_checkpoint_rollback(self):
+        ru = RenameUnit()
+        # Allocate a branch that creates a checkpoint
+        before_map = ru.mapping.copy()
+        ru.allocate([{"valid": True, "rs1": 1, "rs2": 2, "rd": 3, "checkpoint": True}])
+        # Allocate two more instructions
+        ru.allocate([
+            {"valid": True, "rs1": 3, "rs2": 4, "rd": 5},
+            {"valid": True, "rs1": 6, "rs2": 7, "rd": 8},
+        ])
+        used_after = ru.free_count()
+        # Roll back the branch
+        ru.rollback()
+        # Mapping and free list should match the snapshot
+        self.assertEqual(ru.mapping, before_map)
+        self.assertGreater(ru.free_count(), used_after)
+
 if __name__ == '__main__':
     unittest.main()

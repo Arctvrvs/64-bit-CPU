@@ -1,23 +1,29 @@
 class RenameUnit:
     """Simple rename unit model with a free list and mapping table."""
-    def __init__(self, phys_regs=128, arch_regs=32):
+    def __init__(self, phys_regs=128, arch_regs=32, chk_depth=16):
         self.phys_regs = phys_regs
         self.arch_regs = arch_regs
         self.mapping = list(range(arch_regs))
         self.free_list = list(range(arch_regs, phys_regs))
+        self._stack = []
+        self._chk_depth = chk_depth
 
     def free_count(self):
         return len(self.free_list)
 
     def allocate(self, insts):
         """Rename a list of instructions.
-        Each instruction is a dict with keys: 'valid', 'rs1', 'rs2', 'rd'.
+        Each instruction is a dict with keys: 'valid', 'rs1', 'rs2', 'rd',
+        and optional 'checkpoint' to request a rename checkpoint.
         Returns a list of dicts with physical register mappings and old mapping."""
         results = []
         for inst in insts:
             if not inst.get('valid', True):
                 results.append({'valid': False})
                 continue
+            if inst.get('checkpoint', False) and len(self._stack) < self._chk_depth:
+                # push snapshot before allocating the branch itself
+                self._stack.append((self.mapping.copy(), self.free_list.copy()))
             rd = inst.get('rd', 0)
             if self.free_count() == 0:
                 results.append({'valid': False})
@@ -36,6 +42,12 @@ class RenameUnit:
             results.append(res)
         return results
 
+    def rollback(self):
+        """Restore mappings from the most recent checkpoint."""
+        if self._stack:
+            self.mapping, self.free_list = self._stack.pop()
+
     def free(self, phys_idx):
         if phys_idx >= self.arch_regs and phys_idx not in self.free_list:
             self.free_list.append(phys_idx)
+

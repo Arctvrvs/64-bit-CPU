@@ -8,14 +8,23 @@ results against expected behavior.
 Currently supported instructions include:
 
 - Integer ALU operations (`ADD`, `SUB`, `AND`, `OR`, `XOR`,
-  `SLL`, `SRL`, `SRA`, `ADDI`, `ANDI`, `ORI`, `XORI`,
+  `SLL`, `SRL`, `SRA`, `SLT`, `SLTU`,
+  `ADDI`, `ANDI`, `ORI`, `XORI`,
+  `SLTI`, `SLTIU`,
   `SLLI`, `SRLI`, `SRAI`, `LUI`, `AUIPC`)
 - Load/store (`LB`/`LBU`, `LH`/`LHU`, `LW`/`LWU`, `LD`,
   `SB`, `SH`, `SW`, `SD`)
 - Branches (`BEQ`, `BNE`, `BLT`, `BGE`, `BLTU`, `BGEU`)
 - Jumps (`JAL`, `JALR`)
 - Multiply/divide (`MUL`, `DIV`, `REM` and variants)
+- Floating-point add (`FADD.D`)
 - Basic atomic operations (`LR.D`, `SC.D`, `AMOADD.D`, `AMOSWAP.D`)
+- Vector load/store (`vle64.v`, `vse64.v`) and vector add (`vadd.vv`)
+- CSR instructions (`CSRRW`, `CSRRS`, `CSRRC` and immediate forms)
+
+Misaligned load or store addresses raise a `"misalign"` exception which can be
+queried via `get_last_exception()` after calling `step()`.
+Accessing an unmapped address triggers a `"page"` exception.
 
 Misaligned load or store addresses raise a `"misalign"` exception which can be
 queried via `get_last_exception()` after calling `step()`.
