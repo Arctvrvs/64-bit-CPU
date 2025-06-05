@@ -43,5 +43,9 @@ Implemented modules so far:
 - `dram_model` – tiny backing memory model
 - `core_tile_2smts_8wide` – wrapper for two-thread core
 - `riscv_soc_4core` – four-core SoC top
+- `int_alu2` – dual one-cycle integer ALU pipelines
+- `muldiv_unit` – pipelined multiply/divide unit
+- `branch_unit` – resolves branches and detects mispredictions
+- `amo_unit` – executes basic atomic operations
 
 Development follows the tasks outlined in `docs/tasks/cpu.txt`.
