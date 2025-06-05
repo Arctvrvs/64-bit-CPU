@@ -19,3 +19,6 @@ instructions (64 bits) per cycle.
 
 The current implementation is a behavioral placeholder and does not model
 stall or flush signals.
+
+A matching Python class `IFBuffer16` lives in `rtl/fetch/if_buffer.py`
+and is used in the unit tests.

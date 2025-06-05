@@ -18,3 +18,6 @@ L2 cache. The current model simply acknowledges requests and returns zero data.
 
 This stub will later be expanded to include tags, replacement and connection to
 lower memory.
+
+A simple Python `L2Cache` helper in `rtl/cache/l2_cache.py` mimics the
+behavior with a dictionary and is used by the unit tests.

@@ -24,3 +24,4 @@ Given the loaded value and register operand, the unit performs the
 specified operation (swap or add currently) and outputs the result on
 the next cycle. The design is intentionally simple for early
 integration tests.
+A lightweight Python helper `AmoUnit` mirrors the RTL for unit tests.

@@ -37,3 +37,5 @@ standard RV64I ALU instructions in a single cycle.
 The ALUs perform standard arithmetic, logical and shift operations. Both
 pipelines operate independently allowing two instructions per cycle. Results are
 latched on the rising clock edge and forwarded to the write‑back network.
+
+A lightweight Python model (`IntALU2`) mirrors the RTL for unit testing. It executes two operations per call and returns result dictionaries for verification.

@@ -31,8 +31,14 @@ forwards them to the L1 data cache.
 
 ## Behavior
 
-For each valid operation the LSU issues a request to the data cache. Loads
-return their data one cycle later assuming the cache responds ready. Stores
-simply forward their data and do not produce a result. This model omits memory
-ordering, TLB translation and exception logic; these will be added in later
-milestones.
+For each valid operation the LSU translates the virtual address through a
+two-level TLB hierarchy. If the address is not present in the L1 TLB it falls
+back to the L2 TLB and finally the page walker. Translation faults are reported
+to the caller. After a successful translation the unit issues a request to the
+data cache. Loads return their data one cycle later assuming the cache responds
+ready. Stores simply forward their data and do not produce a result. This
+behavioral model still omits ordering rules but now mirrors the basic MMU
+interaction expected in the RTL.
+
+A lightweight Python `LSU` model mirrors this behavior for unit tests. It
+uses the `DataMemoryModel` helper to service load and store operations.

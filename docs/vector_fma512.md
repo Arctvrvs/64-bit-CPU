@@ -1,7 +1,9 @@
 # vector_fma512 Module
 
 `vector_fma512.sv` implements a simplified 512‑bit fused multiply-add unit. It
-accepts three 512‑bit operands and produces the result after five cycles.
+accepts three 512‑bit operands and produces the result after five cycles. A
+matching Python model `VectorFMA512` lives in `rtl/ex_units/vector_fma512.py`
+for use in unit tests.
 
 ## I/O Ports
 

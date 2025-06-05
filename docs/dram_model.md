@@ -16,3 +16,6 @@
 | `resp_rdata[63:0]` | out | 64 | Read data |
 
 Reads and writes complete in a single cycle in this placeholder.
+
+A Python implementation `DRAMModel` in `rtl/interconnect/dram_model.py`
+offers equivalent behavior for the unit tests.

@@ -1,9 +1,7 @@
 # rename_unit_8wide Module
 
-`rename_unit_8wide.sv` provides a simple register renaming implementation for
-up to eight decoded instructions each cycle. It maps architectural register
-indices to physical register indices using an internal rename table and free
-list.
+`rename_unit_8wide.sv` provides a register renaming implementation for up to
+eight decoded instructions each cycle. It maps architectural register indices to physical register indices using an internal rename table and free list. The unit now supports branch checkpointing so mispredictions can roll back to a previous mapping state.
 
 ## Function
 
@@ -13,10 +11,11 @@ list.
 - For each valid instruction, outputs the physical source registers and a newly
   allocated destination register along with the previous mapping (`old_rd_phys`).
 - Allocation occurs only when the ROB and reservation stations can accept eight
-  new entries and at least eight free physical registers are available.
+  new entries and at least eight free physical registers are available. When any
+  instruction asserts the `checkpoint` signal a snapshot of the mapping and
 
-This first version does not implement branch checkpointing or recovery.
-
+  free-list pointers is pushed onto a small stack. If `rollback` later asserts the
+  rename table and free list are restored to the previous snapshot.
 ## I/O Ports
 
 | Name | Dir | Width | Description |
@@ -35,7 +34,9 @@ This first version does not implement branch checkpointing or recovery.
 | `old_rd_phys_o[7:0]` | out | 7 each | Previous mapping of destination |
 | `rename_valid_o[7:0]` | out | 1 each | Allocation successful |
 | `free_list_count_o` | out | 7 | Remaining free registers |
+| `checkpoint_i[7:0]` | in | 1 each | Push mapping snapshot on branch |
+| `rollback_i` | in | 1 | Restore most recent snapshot |
 
-`rename_unit_8wide` is a behavioral placeholder and will be extended with
-branch checkpointing and recovery logic.
+`rename_unit_8wide` now includes a tiny checkpoint stack to support branch
+rollback.
 
