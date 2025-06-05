@@ -76,3 +76,7 @@ out-of-order CPU can perform a little more useful work:
 - `cache_hierarchy.v` contains a two-level cache with a rudimentary LRU
   replacement policy while `mmu_unit.v` manages a larger TLB and reports
   faults on illegal accesses.
+
+## Modern 64-bit CPU Design Notes
+
+Additional planning documents for a more advanced core are located in `Modern 64 CPU/`. These notes outline features such as out-of-order execution, branch prediction improvements, multi-level caches and security extensions.
