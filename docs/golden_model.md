@@ -10,11 +10,15 @@ Currently supported instructions include:
 - Integer ALU operations (`ADD`, `SUB`, `AND`, `OR`, `XOR`,
   `SLL`, `SRL`, `SRA`, `ADDI`, `ANDI`, `ORI`, `XORI`,
   `SLLI`, `SRLI`, `SRAI`, `LUI`, `AUIPC`)
-- Load/store (`LW`/`LD`, `SW`/`SD` simplified as 64‑bit accesses)
+- Load/store (`LB`/`LBU`, `LH`/`LHU`, `LW`/`LWU`, `LD`,
+  `SB`, `SH`, `SW`, `SD`)
 - Branches (`BEQ`, `BNE`, `BLT`, `BGE`, `BLTU`, `BGEU`)
 - Jumps (`JAL`, `JALR`)
 - Multiply/divide (`MUL`, `DIV`, `REM` and variants)
 - Basic atomic operations (`LR.D`, `SC.D`, `AMOADD.D`, `AMOSWAP.D`)
+
+Misaligned load or store addresses raise a `"misalign"` exception which can be
+queried via `get_last_exception()` after calling `step()`.
 
 The `GoldenModel` class maintains an array of 32 general purpose registers,
 a dictionary based memory and the current program counter. The `step` method

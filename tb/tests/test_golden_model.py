@@ -85,6 +85,29 @@ def encode_amoswap(rd, rs1, rs2):
         | 0x2F
     )
 
+
+def encode_load(funct3, rd, rs1, imm):
+    imm &= 0xFFF
+    return (
+        (imm & 0xFFF) << 20
+        | (rs1 & 0x1F) << 15
+        | (funct3 & 7) << 12
+        | (rd & 0x1F) << 7
+        | 0x03
+    )
+
+
+def encode_store(funct3, rs1, rs2, imm):
+    imm &= 0xFFF
+    return (
+        ((imm >> 5) & 0x7F) << 25
+        | (rs2 & 0x1F) << 20
+        | (rs1 & 0x1F) << 15
+        | (funct3 & 7) << 12
+        | (imm & 0x1F) << 7
+        | 0x23
+    )
+
 class GoldenModelTest(unittest.TestCase):
     def test_add_and_addi(self):
         gm = GoldenModel()
@@ -177,6 +200,48 @@ class GoldenModelTest(unittest.TestCase):
         gm.step(encode_amoswap(6, 2, 3))  # amoswap.d x6,(x2),x3
         self.assertEqual(gm.regs[6], 16)
         self.assertEqual(gm.mem[0x100], 9)
+
+    def test_load_store_variants(self):
+        gm = GoldenModel()
+        gm.regs[1] = 0x200
+        gm.regs[2] = 0xAA
+        gm.step(encode_store(0x0, 1, 2, 0))  # sb x2,0(x1)
+        gm.step(encode_load(0x0, 3, 1, 0))   # lb x3,0(x1)
+        self.assertEqual(gm.regs[3], 0xFFFFFFFFFFFFFFAA)
+        gm.step(encode_load(0x4, 4, 1, 0))   # lbu x4,0(x1)
+        self.assertEqual(gm.regs[4], 0xAA)
+        gm.regs[2] = 0xBEEF
+        gm.step(encode_store(0x1, 1, 2, 2))  # sh x2,2(x1)
+        gm.step(encode_load(0x1, 5, 1, 2))   # lh x5,2(x1)
+        self.assertEqual(gm.regs[5], 0xFFFFFFFFFFFFBEEF)
+        gm.step(encode_load(0x5, 6, 1, 2))   # lhu x6,2(x1)
+        self.assertEqual(gm.regs[6], 0xBEEF)
+        gm.regs[2] = 0x12345678
+        gm.step(encode_store(0x2, 1, 2, 4))  # sw x2,4(x1)
+        gm.step(encode_load(0x2, 7, 1, 4))   # lw x7,4(x1)
+        self.assertEqual(gm.regs[7], 0x12345678)
+        gm.step(encode_load(0x6, 8, 1, 4))   # lwu x8,4(x1)
+        self.assertEqual(gm.regs[8], 0x12345678)
+        gm.regs[2] = 0x1122334455667788
+        gm.step(encode_store(0x3, 1, 2, 8))  # sd x2,8(x1)
+        gm.step(encode_load(0x3, 9, 1, 8))   # ld x9,8(x1)
+        self.assertEqual(gm.regs[9], 0x1122334455667788)
+
+    def test_illegal_instruction_exception(self):
+        gm = GoldenModel()
+        gm.step(0xffffffff)  # illegal
+        self.assertEqual(gm.get_last_exception(), "illegal")
+
+    def test_misaligned_access_exception(self):
+        gm = GoldenModel()
+        gm.regs[1] = 0x100
+        gm.regs[2] = 0xBEEF
+        # misaligned halfword store at address 0x101
+        gm.step(encode_store(0x1, 1, 2, 1))
+        self.assertEqual(gm.get_last_exception(), "misalign")
+        # misaligned word load at address 0x102
+        gm.step(encode_load(0x2, 3, 1, 2))
+        self.assertEqual(gm.get_last_exception(), "misalign")
 
 if __name__ == '__main__':
     unittest.main()
