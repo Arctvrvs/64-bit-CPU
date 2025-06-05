@@ -26,6 +26,8 @@ module control (
     localparam FUNCT_AND = 6'b100100;
     localparam FUNCT_OR  = 6'b100101;
     localparam FUNCT_XOR = 6'b100110;
+    localparam FUNCT_SLLV= 6'b000100; // shift left logical variable
+    localparam FUNCT_SRLV= 6'b000110; // shift right logical variable
 
     always @(*) begin
         // Default values
@@ -52,6 +54,8 @@ module control (
                     FUNCT_AND: alu_op = 3'b010;
                     FUNCT_OR:  alu_op = 3'b011;
                     FUNCT_XOR: alu_op = 3'b100;
+                    FUNCT_SLLV: alu_op = 3'b101;
+                    FUNCT_SRLV: alu_op = 3'b110;
                     default:   alu_op = 3'b000;
                 endcase
             end

@@ -12,7 +12,8 @@ module alu64 (
     localparam ALU_AND  = 3'b010;
     localparam ALU_OR   = 3'b011;
     localparam ALU_XOR  = 3'b100;
-    // (You can add more as needed)
+    localparam ALU_SLL  = 3'b101; // logical left shift
+    localparam ALU_SRL  = 3'b110; // logical right shift
 
     always @(*) begin
         case (alu_op)
@@ -21,6 +22,8 @@ module alu64 (
             ALU_AND: result = a & b;
             ALU_OR:  result = a | b;
             ALU_XOR: result = a ^ b;
+            ALU_SLL: result = a << b[5:0];
+            ALU_SRL: result = a >> b[5:0];
             default: result = 64'b0;
         endcase
     end
