@@ -14,5 +14,9 @@ Implemented modules so far:
 - `phys_regfile_128x64` – 128×64-bit physical register file
 - `rename_unit_8wide` – simple rename unit with free list
 - `rob256` – reorder buffer placeholder
+- `int_alu2` – dual one-cycle integer ALU pipelines
+- `muldiv_unit` – pipelined multiply/divide unit
+- `branch_unit` – resolves branches and detects mispredictions
+- `amo_unit` – executes basic atomic operations
 
 Development follows the tasks outlined in `docs/tasks/cpu.txt`.
