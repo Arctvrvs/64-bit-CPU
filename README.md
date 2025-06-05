@@ -32,10 +32,12 @@ Implemented modules so far:
 - `l2_cache_1m_8w` – stub L2 cache model
 - `tlb_l2_512e_8w` – level-2 TLB
 - `page_walker` – simple page table walker
+- `page_walker8` – multi-request page walker
 - `ex_stage` – wrapper that routes issued µops to functional units
 - `smt_arbitration` – round-robin scheduler for SMT threads
 - `router_5port` – simple five-port mesh router
 - `l3_slice_4m_8w` – placeholder L3 cache slice
+- `l3_cache_16m_8w` – shared L3 cache
 - `nx_check` – no-execute permission checker
 - `vmcs` – virtualization control structure
 - `ept` – extended page table translator
