@@ -29,5 +29,9 @@ Implemented modules so far:
 - `l2_cache_1m_8w` – stub L2 cache model
 - `tlb_l2_512e_8w` – level-2 TLB
 - `page_walker` – simple page table walker
+- `int_alu2` – dual one-cycle integer ALU pipelines
+- `muldiv_unit` – pipelined multiply/divide unit
+- `branch_unit` – resolves branches and detects mispredictions
+- `amo_unit` – executes basic atomic operations
 
 Development follows the tasks outlined in `docs/tasks/cpu.txt`.

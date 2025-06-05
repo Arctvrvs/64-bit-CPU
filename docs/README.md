@@ -27,3 +27,5 @@ Module documentation:
 - [l2_cache_1m_8w](l2_cache_1m_8w.md)
 - [tlb_l2_512e_8w](tlb_l2_512e_8w.md)
 - [page_walker](page_walker.md)
+- [branch_unit](branch_unit.md)
+- [amo_unit](amo_unit.md)

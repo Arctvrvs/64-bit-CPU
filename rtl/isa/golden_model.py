@@ -39,6 +39,7 @@ class GoldenModel:
                 self.regs[rd] = (self.regs[rs1] + self.regs[rs2]) & 0xFFFFFFFFFFFFFFFF
             elif funct7 == 0x20 and funct3 == 0x0:  # SUB
                 self.regs[rd] = (self.regs[rs1] - self.regs[rs2]) & 0xFFFFFFFFFFFFFFFF
+
             elif funct7 == 0x00 and funct3 == 0x7:  # AND
                 self.regs[rd] = self.regs[rs1] & self.regs[rs2]
             elif funct7 == 0x00 and funct3 == 0x6:  # OR
@@ -54,6 +55,7 @@ class GoldenModel:
             elif funct7 == 0x20 and funct3 == 0x5:  # SRA
                 shamt = self.regs[rs2] & 0x3F
                 self.regs[rd] = (self._to_signed(self.regs[rs1]) >> shamt) & 0xFFFFFFFFFFFFFFFF
+
             elif funct7 == 0x01:  # RV64M extension
                 if funct3 == 0x0:  # MUL
                     self.regs[rd] = (self.regs[rs1] * self.regs[rs2]) & 0xFFFFFFFFFFFFFFFF
@@ -107,7 +109,8 @@ class GoldenModel:
                         self.regs[rd] = dividend & 0xFFFFFFFFFFFFFFFF
                     else:
                         self.regs[rd] = (dividend % divisor) & 0xFFFFFFFFFFFFFFFF
-        elif opcode == 0x13:  # I-type arith
+               elif opcode == 0x13:  # I-type arith
+               elif opcode == 0x13:  # ADDI
             imm = self._sign_extend(instr >> 20, 12)
             if funct3 == 0x0:  # ADDI
                 self.regs[rd] = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
@@ -173,6 +176,7 @@ class GoldenModel:
         elif opcode == 0x17:  # AUIPC
             imm = instr & 0xFFFFF000
             self.regs[rd] = (self.pc + imm) & 0xFFFFFFFFFFFFFFFF
+
         elif opcode == 0x2F:  # Atomic memory ops
             funct5 = (instr >> 27) & 0x1F
             aq    = (instr >> 26) & 1
