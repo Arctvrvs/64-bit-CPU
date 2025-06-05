@@ -117,7 +117,6 @@ class GoldenModelTest(unittest.TestCase):
         self.assertEqual(gm.regs[4], 5)
         self.assertEqual(gm.regs[5], 0)
 
-
     def test_logic_and_shifts(self):
         gm = GoldenModel()
         gm.step(0x00100093)  # addi x1,x0,1
