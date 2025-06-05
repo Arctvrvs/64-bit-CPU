@@ -39,6 +39,23 @@ class GoldenModel:
                 self.regs[rd] = (self.regs[rs1] + self.regs[rs2]) & 0xFFFFFFFFFFFFFFFF
             elif funct7 == 0x20 and funct3 == 0x0:  # SUB
                 self.regs[rd] = (self.regs[rs1] - self.regs[rs2]) & 0xFFFFFFFFFFFFFFFF
+
+            elif funct7 == 0x00 and funct3 == 0x7:  # AND
+                self.regs[rd] = self.regs[rs1] & self.regs[rs2]
+            elif funct7 == 0x00 and funct3 == 0x6:  # OR
+                self.regs[rd] = self.regs[rs1] | self.regs[rs2]
+            elif funct7 == 0x00 and funct3 == 0x4:  # XOR
+                self.regs[rd] = self.regs[rs1] ^ self.regs[rs2]
+            elif funct7 == 0x00 and funct3 == 0x1:  # SLL
+                shamt = self.regs[rs2] & 0x3F
+                self.regs[rd] = (self.regs[rs1] << shamt) & 0xFFFFFFFFFFFFFFFF
+            elif funct7 == 0x00 and funct3 == 0x5:  # SRL
+                shamt = self.regs[rs2] & 0x3F
+                self.regs[rd] = (self.regs[rs1] >> shamt) & 0xFFFFFFFFFFFFFFFF
+            elif funct7 == 0x20 and funct3 == 0x5:  # SRA
+                shamt = self.regs[rs2] & 0x3F
+                self.regs[rd] = (self._to_signed(self.regs[rs1]) >> shamt) & 0xFFFFFFFFFFFFFFFF
+
             elif funct7 == 0x01:  # RV64M extension
                 if funct3 == 0x0:  # MUL
                     self.regs[rd] = (self.regs[rs1] * self.regs[rs2]) & 0xFFFFFFFFFFFFFFFF
@@ -92,9 +109,28 @@ class GoldenModel:
                         self.regs[rd] = dividend & 0xFFFFFFFFFFFFFFFF
                     else:
                         self.regs[rd] = (dividend % divisor) & 0xFFFFFFFFFFFFFFFF
-        elif opcode == 0x13:  # ADDI
+               elif opcode == 0x13:  # I-type arith
+               elif opcode == 0x13:  # ADDI
             imm = self._sign_extend(instr >> 20, 12)
-            self.regs[rd] = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
+            if funct3 == 0x0:  # ADDI
+                self.regs[rd] = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
+            elif funct3 == 0x7:  # ANDI
+                self.regs[rd] = self.regs[rs1] & (imm & 0xFFFFFFFFFFFFFFFF)
+            elif funct3 == 0x6:  # ORI
+                self.regs[rd] = (self.regs[rs1] | imm) & 0xFFFFFFFFFFFFFFFF
+            elif funct3 == 0x4:  # XORI
+                self.regs[rd] = (self.regs[rs1] ^ imm) & 0xFFFFFFFFFFFFFFFF
+            elif funct3 == 0x1 and funct7 == 0x00:  # SLLI
+                shamt = (instr >> 20) & 0x3F
+                self.regs[rd] = (self.regs[rs1] << shamt) & 0xFFFFFFFFFFFFFFFF
+            elif funct3 == 0x5 and funct7 == 0x00:  # SRLI
+                shamt = (instr >> 20) & 0x3F
+                self.regs[rd] = (self.regs[rs1] >> shamt) & 0xFFFFFFFFFFFFFFFF
+            elif funct3 == 0x5 and funct7 == 0x20:  # SRAI
+                shamt = (instr >> 20) & 0x3F
+                self.regs[rd] = (self._to_signed(self.regs[rs1]) >> shamt) & 0xFFFFFFFFFFFFFFFF
+            else:
+                pass
         elif opcode == 0x03:  # LW (simplified to 64-bit)
             imm = self._sign_extend(instr >> 20, 12)
             addr = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
@@ -134,6 +170,13 @@ class GoldenModel:
             imm = self._sign_extend(instr >> 20, 12)
             self.regs[rd] = (self.pc + 4) & 0xFFFFFFFFFFFFFFFF
             next_pc = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFE
+        elif opcode == 0x37:  # LUI
+            imm = instr & 0xFFFFF000
+            self.regs[rd] = imm
+        elif opcode == 0x17:  # AUIPC
+            imm = instr & 0xFFFFF000
+            self.regs[rd] = (self.pc + imm) & 0xFFFFFFFFFFFFFFFF
+
         elif opcode == 0x2F:  # Atomic memory ops
             funct5 = (instr >> 27) & 0x1F
             aq    = (instr >> 26) & 1

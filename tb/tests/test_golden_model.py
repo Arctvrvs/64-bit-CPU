@@ -117,6 +117,27 @@ class GoldenModelTest(unittest.TestCase):
         self.assertEqual(gm.regs[4], 5)
         self.assertEqual(gm.regs[5], 0)
 
+
+    def test_logic_and_shifts(self):
+        gm = GoldenModel()
+        gm.step(0x00100093)  # addi x1,x0,1
+        gm.step(0x00409093)  # slli x1,x1,4 -> 16
+        gm.step(0x0020d113)  # srli x2,x1,2 -> 4
+        gm.step(0x4010d193)  # srai x3,x1,1 -> 8
+        gm.step(0x00f0e213)  # ori x4,x1,0xf -> 0x1f
+        gm.step(0x00f27293)  # andi x5,x4,0xf -> 0xf
+        gm.step(0x0f02c313)  # xori x6,x5,0xf0 -> 0xff
+        gm.step(0x123453b7)  # lui x7,0x12345
+        gm.step(0x00abc417)  # auipc x8,0xabc
+        self.assertEqual(gm.regs[1], 16)
+        self.assertEqual(gm.regs[2], 4)
+        self.assertEqual(gm.regs[3], 8)
+        self.assertEqual(gm.regs[4], 0x1F)
+        self.assertEqual(gm.regs[5], 0xF)
+        self.assertEqual(gm.regs[6], 0xFF)
+        self.assertEqual(gm.regs[7], 0x12345000)
+        self.assertEqual(gm.regs[8], 0xABC020)
+
     def test_jal_and_jalr(self):
         gm = GoldenModel()
         gm.step(encode_jal(1, 8))  # jal x1,8
