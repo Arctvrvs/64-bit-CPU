@@ -30,3 +30,7 @@ incorporates building blocks for:
 
 These modules are currently minimal stubs intended to replace the older
 pipelined core as more functionality is implemented.
+The latest update adds a tiny instruction fetch queue used by
+`cpu64_outoforder.v`.  This queue decouples fetching from the rename stage
+so that future scheduling logic has a small buffer of instructions to
+work with.

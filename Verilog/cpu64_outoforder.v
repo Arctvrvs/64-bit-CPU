@@ -8,34 +8,54 @@ module cpu64_outoforder(
     input  wire clk,
     input  wire rst_n
 );
-    // ----- Fetch stage with advanced branch predictor -----
+    // --------------------------------------------------------------
+    //  Fetch stage with branch prediction and a small fetch queue
+    // --------------------------------------------------------------
+    reg  [63:0] pc_reg;
     wire [63:0] fetch_pc;
     wire        bp_taken;
     wire [63:0] bp_target;
+    wire        rename_ready;  // declared early for fetch queue logic
+    wire        fq_empty, fq_full;
 
+    // Branch predictor uses the current fetch PC
     branch_predictor_advanced bp_u(
-        .clk(clk),
-        .rst_n(rst_n),
-        .pc_fetch(fetch_pc),
-        .predict_taken(bp_taken),
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .pc_fetch      (pc_reg),
+        .predict_taken (bp_taken),
         .predict_target(bp_target),
-        .update_valid(1'b0),
-        .update_pc(64'b0),
-        .update_taken(1'b0),
-        .update_target(64'b0)
+        .update_valid  (1'b0),
+        .update_pc     (64'b0),
+        .update_taken  (1'b0),
+        .update_target (64'b0)
     );
 
+    // Advance the PC when the queue can accept more instructions
+    wire fq_dequeue;
+    assign fq_dequeue = rename_ready && !fq_empty;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pc_reg <= 64'b0;
+        end else if (!fq_full) begin
+            pc_reg <= bp_taken ? bp_target : pc_reg + 64'd4;
+        end
+    end
+
     fetch_queue fq_u(
-        .clk(clk),
-        .rst_n(rst_n),
-        .pc_in(bp_taken ? bp_target : fetch_pc + 64'd4),
-        .pc_out(fetch_pc),
-        .instr_out(instr_fetch)
+        .clk    (clk),
+        .rst_n  (rst_n),
+        .pc_in  (pc_reg),
+        .dequeue(fq_dequeue),
+        .pc_out (fetch_pc),
+        .instr_out(instr_fetch),
+        .empty  (fq_empty),
+        .full   (fq_full)
     );
 
     // ----- Decode and register renaming -----
     wire [31:0] instr_fetch;
-    wire rename_ready;
     wire [5:0] phys_src1, phys_src2, phys_dest;
 
     register_rename rename_u(
