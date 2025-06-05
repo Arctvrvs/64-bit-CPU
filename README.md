@@ -35,3 +35,19 @@ The latest update adds a tiny instruction fetch queue used by
 `cpu64_outoforder.v`.  This queue decouples fetching from the rename stage
 so that future scheduling logic has a small buffer of instructions to
 work with.
+
+## Most Advanced CPU
+
+A small wrapper module `cpu64_most_advanced.v` instantiates the experimental
+out-of-order core. A corresponding testbench `tb_cpu64_most_advanced.v`
+provides a simple clock and reset so that the design can be simulated.
+
+To build and run the testbench with Icarus Verilog:
+
+```sh
+iverilog -o cpu64_tb Verilog/*.v
+vvp cpu64_tb
+```
+
+The simulation will toggle the clock for a few hundred nanoseconds and
+then finish, demonstrating that the advanced CPU integrates cleanly.
