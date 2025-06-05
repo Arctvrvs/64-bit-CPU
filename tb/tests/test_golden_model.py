@@ -118,7 +118,6 @@ def encode_store(funct3, rs1, rs2, imm):
         | 0x23
     )
 
-
 def encode_csrrw(rd, rs1, csr):
     return (
         (csr & 0xFFF) << 20
@@ -288,6 +287,7 @@ class GoldenModelTest(unittest.TestCase):
         gm = GoldenModel()
         for addr in [0x200, 0x202, 0x204, 0x208]:
             gm.load_memory(addr, 0)
+
         gm.regs[1] = 0x200
         gm.regs[2] = 0xAA
         gm.step(encode_store(0x0, 1, 2, 0))  # sb x2,0(x1)
@@ -333,6 +333,7 @@ class GoldenModelTest(unittest.TestCase):
         gm.regs[2] = 0xAA
         gm.step(encode_store(0x3, 1, 2, 0))
         self.assertEqual(gm.get_last_exception(), "page")
+
         # misaligned word load at address 0x102
         gm.step(encode_load(0x2, 3, 1, 2))
         self.assertEqual(gm.get_last_exception(), "misalign")

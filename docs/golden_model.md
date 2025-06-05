@@ -26,6 +26,9 @@ Misaligned load or store addresses raise a `"misalign"` exception which can be
 queried via `get_last_exception()` after calling `step()`.
 Accessing an unmapped address triggers a `"page"` exception.
 
+Misaligned load or store addresses raise a `"misalign"` exception which can be
+queried via `get_last_exception()` after calling `step()`.
+
 The `GoldenModel` class maintains an array of 32 general purpose registers,
 a dictionary based memory and the current program counter. The `step` method
 decodes and executes a single 32‑bit instruction. The helper

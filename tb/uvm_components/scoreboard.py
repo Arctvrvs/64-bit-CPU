@@ -1,22 +1,33 @@
 class Scoreboard:
     """Simple scoreboard using the GoldenModel for reference checking."""
+
     def __init__(self, start_pc=0, start_rob_idx=0, coverage=None):
+
+    def __init__(self, start_pc=0):
+
         from rtl.isa.golden_model import GoldenModel
         self.gm = GoldenModel(pc=start_pc)
         self.trace = []
         self.cycle = 0
+
         self.expected_rob_idx = start_rob_idx
         self.coverage = coverage
 
     def reset(self, pc=0, rob_idx=0):
+
+
+    def reset(self, pc=0):
+
         """Clear state and restart the golden model."""
         from rtl.isa.golden_model import GoldenModel
         self.gm = GoldenModel(pc=pc)
         self.trace.clear()
         self.cycle = 0
+
         self.expected_rob_idx = rob_idx
         if self.coverage:
             self.coverage.reset()
+
 
     def commit(self, instr, rd_arch=None, rd_val=None,
                is_store=False, store_addr=None, store_data=None,
@@ -25,6 +36,8 @@ class Scoreboard:
                branch_taken=None, branch_target=None,
                pred_taken=None, pred_target=None,
                mispredict=None, rob_idx=None, *, increment_cycle=True):
+               mispredict=None, *, increment_cycle=True):
+
         """Check a committed instruction.
 
         Parameters
@@ -64,6 +77,7 @@ class Scoreboard:
         rob_idx : int or None
             Index of the instruction in the reorder buffer. If provided,
             commit order is verified by expecting consecutive indices.
+
         Returns
         -------
         bool
@@ -77,6 +91,9 @@ class Scoreboard:
         gm_exc = self.gm.get_last_exception()
         if self.coverage and gm_exc is not None:
             self.coverage.record_exception(gm_exc)
+        self.gm.step(instr)
+        gm_exc = self.gm.get_last_exception()
+        opcode = instr & 0x7F
         branch_instr = opcode in (0x63, 0x6F, 0x67)
         branch_taken_gm = branch_instr and (self.gm.pc != pc_before + 4)
         branch_target_gm = self.gm.pc if branch_taken_gm else None
@@ -119,6 +136,14 @@ class Scoreboard:
             if rob_idx != self.expected_rob_idx:
                 ok = False
             self.expected_rob_idx = (rob_idx + 1) & 0xFFFFFFFF
+        if mispredict is not None:
+            calc_misp = False
+            if pred_taken is not None:
+                calc_misp |= pred_taken != branch_taken_gm
+            if branch_taken_gm and pred_target is not None:
+                calc_misp |= pred_target != branch_target_gm
+            if calc_misp != mispredict:
+                ok = False
         self.trace.append({
             "cycle": current_cycle,
             "pc": pc_before,
@@ -137,6 +162,9 @@ class Scoreboard:
             "pred_target": pred_target,
             "mispredict": mispred_flag,
             "rob_idx": rob_idx,
+
+            "mispredict": mispredict,
+
         })
         return ok
 
@@ -170,6 +198,7 @@ class Scoreboard:
                 "pred_taken",
                 "pred_target",
                 "mispredict",
+
                 "rob_idx",
             ]
             f.write(",".join(header) + "\n")
@@ -203,6 +232,7 @@ class Scoreboard:
                       branch_taken_list=None, branch_target_list=None,
                       pred_taken_list=None, pred_target_list=None,
                       mispredict_list=None, rob_idx_list=None):
+                      mispredict_list=None):
         """Commit a bundle of instructions retiring in the same cycle.
 
         Parameters

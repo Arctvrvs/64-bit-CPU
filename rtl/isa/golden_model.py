@@ -10,7 +10,6 @@ class GoldenModel:
         self.pc = pc
         self._reservation = None
         self.last_exception = None
-
         self.MASK64 = 0xFFFFFFFFFFFFFFFF
         self.MASK512 = (1 << 512) - 1
 
@@ -179,8 +178,10 @@ class GoldenModel:
                 misalign = align > 1
             if misalign:
                 self.last_exception = "misalign"
+
             elif addr not in self.mem:
                 self.last_exception = "page"
+
             elif funct3 == 0x0:  # LB
                 data = self.mem.get(addr, 0) & 0xFF
                 self.regs[rd] = self._sign_extend(data, 8) & 0xFFFFFFFFFFFFFFFF

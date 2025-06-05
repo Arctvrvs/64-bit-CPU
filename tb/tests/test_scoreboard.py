@@ -5,7 +5,9 @@ import unittest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from tb.uvm_components.scoreboard import Scoreboard
+
 from tb.uvm_components.coverage import CoverageModel
+
 from rtl.isa.golden_model import GoldenModel
 
 
@@ -55,6 +57,11 @@ class ScoreboardTest(unittest.TestCase):
     def test_commit_sequence(self):
         sb = Scoreboard()
         sb.gm.mem[0x100] = 0
+
+class ScoreboardTest(unittest.TestCase):
+    def test_commit_sequence(self):
+        sb = Scoreboard()
+
         # ADDI x1,x0,5
         self.assertTrue(sb.commit(0x00500093, rd_arch=1, rd_val=5, next_pc=4))
         # ADDI x2,x0,0x100
@@ -84,6 +91,7 @@ class ScoreboardTest(unittest.TestCase):
     def test_branch_pc(self):
         sb = Scoreboard()
         sb.gm.mem[0x200] = 0
+
         # JAL to PC+8 at PC=0
         self.assertTrue(sb.commit(0x0080006f, next_pc=8))
         trace = sb.get_trace()
@@ -104,6 +112,7 @@ class ScoreboardTest(unittest.TestCase):
             pred_target_list=[None, None],
             mispredict_list=[False, False],
             rob_idx_list=[0, 1],
+
         )
         self.assertEqual(results, [True, True])
         trace = sb.get_trace()
@@ -118,6 +127,7 @@ class ScoreboardTest(unittest.TestCase):
         self.assertTrue(sb.commit(0x00300113, rd_arch=2, rd_val=3, next_pc=8, rob_idx=1))
         # Out-of-order commit should fail
         self.assertFalse(sb.commit(0x00000013, rd_arch=0, rd_val=0, next_pc=12, rob_idx=1))
+
 
     def test_reset(self):
         sb = Scoreboard()
@@ -163,14 +173,24 @@ class ScoreboardTest(unittest.TestCase):
     def test_byte_load_store(self):
         sb = Scoreboard()
         sb.gm.mem[0x200] = 0
+
+    def test_byte_load_store(self):
+        sb = Scoreboard()
+
         # addi x1,x0,0x200
         self.assertTrue(sb.commit(0x20000093, rd_arch=1, rd_val=0x200, next_pc=4))
         # addi x2,x0,0xAA
         self.assertTrue(sb.commit(0x0AA00113, rd_arch=2, rd_val=0xAA, next_pc=8))
         # sb x2,0(x1)
+
         sb.commit(encode_store(0x0, 1, 2, 0), is_store=True, store_addr=0x200, store_data=0xAA, next_pc=12)
         # lb x3,0(x1)
         self.assertTrue(sb.commit(encode_load(0x0, 3, 1, 0), rd_arch=3, rd_val=0xFFFFFFFFFFFFFFAA, next_pc=16))
+
+        sb.commit(0x00210023, is_store=True, store_addr=0x200, store_data=0xAA, next_pc=12)
+        # lb x3,0(x1)
+        self.assertTrue(sb.commit(0x00010183, rd_arch=3, rd_val=0xFFFFFFFFFFFFFFAA, next_pc=16))
+
 
     def test_load_data_check(self):
         sb = Scoreboard()
@@ -219,11 +239,13 @@ class ScoreboardTest(unittest.TestCase):
             )
         )
 
+
     def test_csr_commit(self):
         sb = Scoreboard()
         instr = encode_csrrwi(1, 2, 0x300)
         self.assertTrue(sb.commit(instr, rd_arch=1, rd_val=0, next_pc=4))
         self.assertEqual(sb.gm.csrs.get(0x300), 2)
+
 
     def test_dump_trace(self):
         sb = Scoreboard()
@@ -266,6 +288,10 @@ class ScoreboardTest(unittest.TestCase):
         self.assertEqual(summary['exceptions']['illegal'], 1)
         self.assertEqual(summary['branches'], 2)
         self.assertEqual(summary['mispredicts'], 1)
+
+        self.assertTrue(lines[0].startswith("cycle"))
+        self.assertEqual(len(lines), 2)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -11,6 +11,8 @@ the golden model and compares the destination register, any store or load data, 
 trace can be retrieved later.  The trace includes the retire **cycle** number
 starting from zero.  When ``rob_idx`` values are provided the scoreboard
 verifies that instructions retire sequentially.
+starting from zero.
+
 
 ## Usage
 
@@ -23,17 +25,23 @@ sb = Scoreboard(start_pc=0, coverage=cov)
 passed = sb.commit(instr, rd_arch=5, rd_val=42, next_pc=4)
 passed_exc = sb.commit(0xffffffff, exception="illegal")
 pf = sb.commit(some_load, exception="page")
+sb = Scoreboard(start_pc=0)
+passed = sb.commit(instr, rd_arch=5, rd_val=42, next_pc=4)
+passed_exc = sb.commit(0xffffffff, exception="illegal")
 load_ok = sb.commit(instr_load, rd_arch=1, rd_val=0x55,
                     is_load=True, load_addr=0x100, load_data=0x55)
 ```
 
+
 When a ``CoverageModel`` is supplied the scoreboard automatically records
 executed opcodes, branch outcomes and any exceptions into the coverage tracker.
+
 
 The method returns `True` when the provided values match the reference
 model, otherwise `False`.
 
 `next_pc` can be omitted if checking of the program counter is not
+
 needed.  Provide an ``exception`` string (for example ``"illegal"``,
 ``"misalign"`` or ``"page"``) to verify that the golden model reports the same fault
 as the RTL.
@@ -44,10 +52,19 @@ memory. Set ``is_store=True`` and provide ``store_addr`` and
 Passing ``exception="page"`` allows tests to check page faults triggered
 by the golden model.
 
+needed.  Provide an ``exception`` string (for example ``"illegal"`` or
+``"misalign"``) to verify that the golden model reports the same fault
+as the RTL.
+Specify ``is_load=True`` together with ``load_addr`` and ``load_data`` to
+verify the value returned by a load instruction against the model's
+memory.
+
+
 Branches may also be checked by passing ``branch_taken`` and
 ``branch_target``.  When prediction information is provided via
 ``pred_taken`` and ``pred_target`` the ``mispredict`` flag is verified as
 well.
+
 
 To verify commit ordering you may provide a ``rob_idx`` number with each
 call to ``commit``.  The scoreboard will expect these indices to increase
@@ -70,6 +87,7 @@ can be compared with other reference traces or inspected manually.
 sb.commit(0x00500093, rd_arch=1, rd_val=5)
 sb.dump_trace("trace.csv")
 ```
+
 The CSV contains a ``rob_idx`` column when commit ordering is checked.
 
 Use `reset()` to clear the trace and restart the golden model if a test needs

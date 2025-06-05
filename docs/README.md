@@ -48,6 +48,15 @@ Module documentation:
 - [regfile_bfm](regfile_bfm.md)
  - [core_tile_2smts_8wide](core_tile_2smts_8wide.md) - Python model
  - [riscv_soc_4core](riscv_soc_4core.md) - Python model
+- [interconnect_mesh_2x2](interconnect_mesh_2x2.md)
+- [dram_model](dram_model.md)
+- [instr_memory_model](instr_memory_model.md)
+- [data_memory_model](data_memory_model.md)
+- [reset_generator](reset_generator.md)
+- [scoreboard](scoreboard.md)
+- [regfile_bfm](regfile_bfm.md)
+- [core_tile_2smts_8wide](core_tile_2smts_8wide.md)
+- [riscv_soc_4core](riscv_soc_4core.md)
 - [vmcs](vmcs.md)
 - [ept](ept.md)
 - [nx_check](nx_check.md)

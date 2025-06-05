@@ -9,6 +9,7 @@ Implemented modules so far:
    load/store support, SLT/SLTI ops, basic CSR instructions,
    floating-point add (`FADD.D`) and simple vector operations
    (`vle64.v`, `vse64.v`, `vadd.vv`)
+   load/store support
 - `pc_fetch` – program counter generation for instruction fetch
 - `l1_icache_64k_8w` – placeholder for the L1 instruction cache with a small Python `L1ICache` model for tests
 - `if_buffer_16` – FIFO buffer between fetch and decode with a Python `IFBuffer16` helper
@@ -69,5 +70,20 @@ Implemented modules so far:
   the golden model
 - `core_tile_2smts_8wide` – wrapper for two-thread core (Python model available)
 - `riscv_soc_4core` – four-core SoC top (Python model available)
+- `vmcs` – virtualization control structure
+- `ept` – extended page table translator
+- `interconnect_mesh_2x2` – wires four routers together
+- `dram_model` – tiny backing memory model
+- `instr_memory_model` – simple instruction memory backed by DRAMModel
+- `data_memory_model` – simple data memory wrapper around DRAMModel
+- `reset_generator` – helper producing an active-low reset pulse for tests
+ - `scoreboard` – reference checker for retired instructions with
+    per-cycle commit trace, reset capability, exception checking
+    (illegal and misalign faults), optional load/store verification,
+    branch and prediction verification, and ability to export the trace as CSV
+- `regfile_bfm` – simple model that checks register file writes against
+  the golden model
+- `core_tile_2smts_8wide` – wrapper for two-thread core
+- `riscv_soc_4core` – four-core SoC top
 
 Development follows the tasks outlined in `docs/tasks/cpu.txt`.
