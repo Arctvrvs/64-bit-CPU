@@ -4,7 +4,7 @@ module control (
     input  wire [5:0]  funct,      // only for R-type
     output reg         reg_write,
     output reg         alu_src,    // 0=rs2, 1=imm
-    output reg  [2:0]  alu_op,     // 000=ADD,001=SUB,010=AND,011=OR,100=XOR
+    output reg  [2:0]  alu_op,     // 000=ADD,001=SUB,010=AND,011=OR,100=XOR,111=MUL
     output reg         mem_read,
     output reg         mem_write,
     output reg         mem_to_reg, // 0=ALU?Reg; 1=Mem?Reg
@@ -28,6 +28,7 @@ module control (
     localparam FUNCT_XOR = 6'b100110;
     localparam FUNCT_SLLV= 6'b000100; // shift left logical variable
     localparam FUNCT_SRLV= 6'b000110; // shift right logical variable
+    localparam FUNCT_MUL = 6'b011000; // multiplication
 
     always @(*) begin
         // Default values
@@ -56,7 +57,8 @@ module control (
                     FUNCT_XOR: alu_op = 3'b100;
                     FUNCT_SLLV: alu_op = 3'b101;
                     FUNCT_SRLV: alu_op = 3'b110;
-                    default:   alu_op = 3'b000;
+                    FUNCT_MUL:  alu_op = 3'b111;
+                    default:    alu_op = 3'b000;
                 endcase
             end
 

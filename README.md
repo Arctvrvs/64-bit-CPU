@@ -12,3 +12,8 @@ Shift instructions have been added using two new R-type function codes:
 
 These operations correspond to new ALU op codes and allow the CPU to shift by a
 variable amount specified in the second source register.
+
+## Modern update
+
+The pipeline now includes a `MUL` instruction using a new R-type function code
+and ALU op. This multiplies two registers producing a 64-bit result.

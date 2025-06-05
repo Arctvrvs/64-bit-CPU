@@ -14,6 +14,7 @@ module alu64 (
     localparam ALU_XOR  = 3'b100;
     localparam ALU_SLL  = 3'b101; // logical left shift
     localparam ALU_SRL  = 3'b110; // logical right shift
+    localparam ALU_MUL  = 3'b111; // multiplication
 
     always @(*) begin
         case (alu_op)
@@ -24,6 +25,7 @@ module alu64 (
             ALU_XOR: result = a ^ b;
             ALU_SLL: result = a << b[5:0];
             ALU_SRL: result = a >> b[5:0];
+            ALU_MUL: result = a * b;
             default: result = 64'b0;
         endcase
     end
