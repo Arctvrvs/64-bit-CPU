@@ -12,3 +12,5 @@ Module documentation:
 - [phys_regfile_128x64](phys_regfile_128x64.md)
 - [rename_unit_8wide](rename_unit_8wide.md)
 - [rob256](rob256.md)
+- [branch_unit](branch_unit.md)
+- [amo_unit](amo_unit.md)
