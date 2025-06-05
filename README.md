@@ -12,3 +12,7 @@ Shift instructions have been added using two new R-type function codes:
 
 These operations correspond to new ALU op codes and allow the CPU to shift by a
 variable amount specified in the second source register.
+
+## Superscalar Version
+
+A new experimental module `cpu64_superscalar.v` demonstrates a dual-issue pipeline. It fetches and decodes two instructions per cycle and uses a shared register file with four read ports. Minimal cross-lane hazard detection is provided via `hazard_unit_superscalar.v`.
