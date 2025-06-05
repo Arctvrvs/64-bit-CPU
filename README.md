@@ -5,7 +5,8 @@ This repository contains an open source implementation of a high performance
 `rtl/` directory with documentation in `docs/`.
 
 Implemented modules so far:
-- `golden_model` – minimal Python reference model
+ - `golden_model` – minimal Python reference model with byte/half/word
+   load/store support
 - `pc_fetch` – program counter generation for instruction fetch
 - `l1_icache_64k_8w` – placeholder for the L1 instruction cache
 - `if_buffer_16` – FIFO buffer between fetch and decode
@@ -39,10 +40,20 @@ Implemented modules so far:
 - `l3_slice_4m_8w` – placeholder L3 cache slice
 - `l3_cache_16m_8w` – shared L3 cache
 - `nx_check` – no-execute permission checker
+- `sgx_enclave` – minimal SGX enclave controller
 - `vmcs` – virtualization control structure
 - `ept` – extended page table translator
 - `interconnect_mesh_2x2` – wires four routers together
 - `dram_model` – tiny backing memory model
+- `instr_memory_model` – simple instruction memory backed by DRAMModel
+- `data_memory_model` – simple data memory wrapper around DRAMModel
+- `reset_generator` – helper producing an active-low reset pulse for tests
+ - `scoreboard` – reference checker for retired instructions with
+    per-cycle commit trace, reset capability, exception checking
+    (illegal and misalign faults), optional load/store verification,
+    branch and prediction verification, and ability to export the trace as CSV
+- `regfile_bfm` – simple model that checks register file writes against
+  the golden model
 - `core_tile_2smts_8wide` – wrapper for two-thread core
 - `riscv_soc_4core` – four-core SoC top
 

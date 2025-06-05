@@ -6,6 +6,7 @@ class GoldenModel:
         self.mem = {}
         self.pc = pc
         self._reservation = None
+        self.last_exception = None
 
     def load_memory(self, addr, data):
         """Load 64-bit word at addr."""
@@ -13,6 +14,10 @@ class GoldenModel:
 
     def fetch(self, addr):
         return self.mem.get(addr, 0)
+
+    def get_last_exception(self):
+        """Return the last exception string or ``None``."""
+        return self.last_exception
 
     @staticmethod
     def _sign_extend(value, bits):
@@ -24,6 +29,7 @@ class GoldenModel:
         return val if val < 2**63 else val - 2**64
 
     def step(self, instr):
+        self.last_exception = None
         opcode = instr & 0x7F
         rd = (instr >> 7) & 0x1F
         funct3 = (instr >> 12) & 0x7
@@ -128,16 +134,67 @@ class GoldenModel:
                 shamt = (instr >> 20) & 0x3F
                 self.regs[rd] = (self._to_signed(self.regs[rs1]) >> shamt) & 0xFFFFFFFFFFFFFFFF
             else:
-                pass
-        elif opcode == 0x03:  # LW (simplified to 64-bit)
+                self.last_exception = "illegal"
+        elif opcode == 0x03:  # Loads
             imm = self._sign_extend(instr >> 20, 12)
             addr = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
-            self.regs[rd] = self.mem.get(addr, 0)
-        elif opcode == 0x23:  # SW (simplified to 64-bit)
+            misalign = False
+            case_align = {
+                0x1: 2,
+                0x2: 4,
+                0x3: 8,
+                0x5: 2,
+                0x6: 4,
+            }
+            align = case_align.get(funct3, 1)
+            if addr % align != 0:
+                misalign = align > 1
+            if misalign:
+                self.last_exception = "misalign"
+            elif funct3 == 0x0:  # LB
+                data = self.mem.get(addr, 0) & 0xFF
+                self.regs[rd] = self._sign_extend(data, 8) & 0xFFFFFFFFFFFFFFFF
+            elif funct3 == 0x1:  # LH
+                data = self.mem.get(addr, 0) & 0xFFFF
+                self.regs[rd] = self._sign_extend(data, 16) & 0xFFFFFFFFFFFFFFFF
+            elif funct3 == 0x2:  # LW
+                data = self.mem.get(addr, 0) & 0xFFFFFFFF
+                self.regs[rd] = self._sign_extend(data, 32) & 0xFFFFFFFFFFFFFFFF
+            elif funct3 == 0x3:  # LD
+                self.regs[rd] = self.mem.get(addr, 0) & 0xFFFFFFFFFFFFFFFF
+            elif funct3 == 0x4:  # LBU
+                self.regs[rd] = self.mem.get(addr, 0) & 0xFF
+            elif funct3 == 0x5:  # LHU
+                self.regs[rd] = self.mem.get(addr, 0) & 0xFFFF
+            elif funct3 == 0x6:  # LWU
+                self.regs[rd] = self.mem.get(addr, 0) & 0xFFFFFFFF
+            else:
+                self.last_exception = "illegal"
+        elif opcode == 0x23:  # Stores
             imm = ((instr >> 7) & 0x1F) | (((instr >> 25) & 0x7F) << 5)
             imm = self._sign_extend(imm, 12)
             addr = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
-            self.mem[addr] = self.regs[rs2] & 0xFFFFFFFFFFFFFFFF
+            misalign = False
+            case_align = {
+                0x1: 2,
+                0x2: 4,
+                0x3: 8,
+            }
+            align = case_align.get(funct3, 1)
+            if addr % align != 0:
+                misalign = align > 1
+            if misalign:
+                self.last_exception = "misalign"
+            elif funct3 == 0x0:  # SB
+                self.mem[addr] = self.regs[rs2] & 0xFF
+            elif funct3 == 0x1:  # SH
+                self.mem[addr] = self.regs[rs2] & 0xFFFF
+            elif funct3 == 0x2:  # SW
+                self.mem[addr] = self.regs[rs2] & 0xFFFFFFFF
+            elif funct3 == 0x3:  # SD
+                self.mem[addr] = self.regs[rs2] & 0xFFFFFFFFFFFFFFFF
+            else:
+                self.last_exception = "illegal"
         elif opcode == 0x63:  # Branches
             imm = ((instr >> 7) & 0x1E) | ((instr >> 20) & 0x7E0)
             imm |= ((instr >> 7) & 0x1) << 11
@@ -197,6 +254,8 @@ class GoldenModel:
                 tmp = self.mem.get(addr, 0)
                 self.mem[addr] = self.regs[rs2] & 0xFFFFFFFFFFFFFFFF
                 self.regs[rd] = tmp
+        else:
+            self.last_exception = "illegal"
         self.pc = next_pc
         return next_pc
 
