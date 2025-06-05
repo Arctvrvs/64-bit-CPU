@@ -40,3 +40,4 @@ Module documentation:
 - [vmcs](vmcs.md)
 - [ept](ept.md)
 - [nx_check](nx_check.md)
+- [branch_unit](branch_unit.md)

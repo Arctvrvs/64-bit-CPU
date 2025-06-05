@@ -108,6 +108,8 @@ class GoldenModel:
                     else:
                         self.regs[rd] = (dividend % divisor) & 0xFFFFFFFFFFFFFFFF
         elif opcode == 0x13:  # I-type arith
+               elif opcode == 0x13:  # I-type arith
+               elif opcode == 0x13:  # ADDI
             imm = self._sign_extend(instr >> 20, 12)
             if funct3 == 0x0:  # ADDI
                 self.regs[rd] = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
