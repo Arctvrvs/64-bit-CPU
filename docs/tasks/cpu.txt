@@ -1,0 +1,744 @@
+
+---
+
+## 1. Establish Foundations
+
+1. **Create a RISC-V Golden Reference (C/Python Model)**
+
+   * **Purpose:** Provide a cycle-agnostic, functional simulator (interpreter) of your chosen 64-bit RISC-V subset so that UVM testbenches can compare RTL results against expected behavior.
+   * **Tasks:**
+
+     1. Support the base integer ISA plus the required extensions:
+
+        * RV64I (integer), RV64M (multiply/divide), RV64A (atomic), RV64F/ D? (floating-point), RV64V (vector).
+        * Privileged spec (for MMU, page-table formats, exceptions).
+        * 8-wide decode: permit up to 8 instructions per cycle in the golden model’s “issue stage.”
+     2. Implement page‐table walks and exception conditions (illegal instruction, page faults, misalign).
+     3. Provide a clean API: given PC and up to 8 fetched instructions, return decoded µops, check hazards, update architectural state, and produce a next-PC.
+   * **Verification:**
+
+     * Run a suite of known RISC-V assembly tests (e.g., riscv-isa-sim test suite) to confirm correctness.
+     * Provide a “reference trace” format (cycle by cycle µop retire, register writes, memory accesses).
+
+2. **Set Up Code Repositories & Conventions**
+
+   * **Directory Layout (exact):**
+
+     ```
+     /rtl/                                             ← All RTL in Verilog/SystemVerilog
+       /isa/                                           ← Definitions: opcodes, funct codes, immediate formats
+       /decode/                                        ← Decoder for 8-wide fetch bundle
+       /rf/                                            ← Architectural and Physical register files
+       /rename/                                        ← Rename table + free list
+       /rob_rs_iq/                                     ← ROB, Reservation Stations, Issue Queue
+       /ex_units/                                      ← Integer ALU, Multiply/Divide, Branch Unit, Vector Unit
+       /lsu/                                           ← Load/Store Unit + Vector LS Unit
+       /bp/                                            ← BTB, TAGE predictor, RSB, IBP
+       /cache/                                         ← L1 I&D, L2, L3, directory, MSHR
+       /mmu/                                           ← L1 TLB, L2 TLB, Page Walker
+       /smt/                                           ← SMT arbitration logic
+       /interconnect/                                  ← Mesh/Ring routers, coherence protocol
+       /vm/                                            ← Virtualization (VMCS, EPT)
+       /security/                                      ← NX/SMEP/SMAP, SGX/SEV stubs, Spectre/Meltdown checks
+       top.sv                                          ← Top-level SoC integration
+     /tb/                                              ← UVM testbench environment
+       /uvm_components/                                ← Agents, BFM, coverage, scoreboard
+       /tests/                                         ← Directed and constrained-random test cases
+     Makefile                                          ← Build/sim scripts, lint, coverage
+     ```
+   * **Coding Style & Naming:**
+
+     * Use consistent signal names (`clk`, `rst_n`, `opcode_i[6:0]`, `rs1_idx_i[4:0]`, `imm_i[31:0]`), module names (`decoder8w.sv`, `rob256.sv`, `cache_l1d_64k_8w.sv`).
+     * Each module has a one-paragraph header (purpose, parameters, I/O summary).
+     * Add attributes for clock-gating in modules where relevant (`(* clock_gating_cell = "yes" *)`).
+   * **Simulation Tools:**
+
+     * Use a SystemVerilog simulator (Questa/VCS) that supports UVM.
+     * Lint with Verible or commercial lint.
+     * Integrate code coverage (line, toggle, expression) and functional coverage points in UVM.
+
+---
+
+## 2. Instruction Fetch & Decode (Stages 1–3 of the 20)
+
+1. **IF1 & IF2 Pipelines (Fetch from L1 I-Cache)**
+
+   * **Module:** `pc_fetch.sv`
+
+     * **Inputs:** `clk, rst_n, branch_taken, branch_target[63:0], flush_id`
+     * **Outputs:** `pc_if2[63:0], pc_if1_plus8[63:0]`
+     * **Behavior:**
+
+       * On reset: `pc_reg = RESET_VECTOR`.
+       * Else: if `branch_taken`, `pc_reg <= branch_target`; else `pc_reg <= pc_reg + 8` (fetch 2 instructions at once, 8 bytes).
+       * Provide `pc_if2 = pc_reg` and a lookahead `pc_if1_plus8 = pc_reg + 8`.
+     * **Goal:** Drive two parallel I-cache requests each cycle.
+   * **Module:** `l1_icache_64k_8w.sv`
+
+     * **Params:** `LINE_BYTES=64`, `ASSOC=8`, `SETS=128`, `OFFSET_BITS=6`, `INDEX_BITS=7`, `TAG_BITS=64-6-7=51`.
+     * **I/O:**
+
+       * `input clk, rst_n, req_valid_if1, req_addr_if1[63:0], req_valid_if2, req_addr_if2[63:0]`
+       * `output ready_if1, data_if1[63:0], ready_if2, data_if2[63:0]`, plus miss addresses for L2.
+     * **Structure:**
+
+       * Two tag lookups & two data reads per cycle.
+       * On miss, allocate an MSHR entry (max 8 in flight).
+       * Replacement via 7-bit pseudo-LRU per set.
+   * **Module:** `if_buffer_16.sv` (Fetch FIFO)
+
+     * Holds up to 16 instructions (128 bytes) to absorb I-cache latency.
+     * Dequeues up to 8 bytes per cycle (two 32-bit instructions).
+   * **Verification (per UVM):**
+
+     * Write a UVM agent that drives `pc_fetch` and `l1_icache` with random aligned and misaligned fetches.
+     * Cover cases: I-cache hits, misses, replacement, and MSHR contention.
+
+2. **8-Wide Decoder (Stages 3–5)**
+
+   * **Module:** `decoder8w.sv`
+
+     * **Inputs:** Eight 32-bit instruction words (`instr0`…`instr7`), each accompanied by its `pc_i[63:0]`.
+     * **Outputs:** For each µop `j` (0–7):
+
+       * `valid_j`, `rd_arch_j[4:0], rs1_arch_j[4:0], rs2_arch_j[4:0], imm_j[63:0], func3_j[2:0], func7_j[6:0]`, control signals `is_load_j, is_store_j, is_branch_j, is_alu_reg_j, is_alu_imm_j, is_fence_j, is_ecall_j, is_vector_j, is_priv_j, …`
+       * `exception_j[2:0]` for illegal opcodes/unimplemented instructions.
+     * **Functionality:**
+
+       * Decode R-type, I-type, S-type, B-type, U-type, J-type, plus vector encoding (RVV).
+       * Generate micro-op fields (e.g., separate into “uop” struct: `opcode_uop[6:0], rs1_p[4:0], rs2_p[4:0], rd_p[4:0], imm[63:0], type_enum[3:0]`).
+       * Drive control signals for rename stage.
+   * **Verification:**
+
+     * UVM driver supplies random instruction words (including illegal encodings).
+     * Scoreboard compares outputs to a golden decode model (in C) and checks coverage of all opcodes and immediate patterns.
+
+---
+
+## 3. Register File(s) & Rename (Stages 5–7)
+
+1. **Architectural Register File (ARF) – 32 × 64-bit**
+
+   * **Module:** `arch_regfile_32x64.sv`
+
+     * **I/O:**
+
+       * `clk, rst_n, we0, waddr0[4:0], wdata0[63:0]` for write port;
+       * `raddr0[4:0], rdata0[63:0], raddr1[4:0], rdata1[63:0], raddr2[4:0], rdata2[63:0]` for three read ports.
+     * **Behavior:** Write occurs on `posedge clk` if `we0`; reads are asynchronous.
+   * **Verification:** Write/read random patterns, check that writes take effect next cycle and reads reflect the correct data.
+
+2. **Physical Register File (PRF) – 128 × 64-bit**
+
+   * **Module:** `phys_regfile_128x64.sv`
+
+     * **I/O:**
+
+       * Six read ports (`raddr0_5[6:0]` → `rdata0_5[63:0]`)
+       * Four write ports (`clk, we0_3, waddr0_3[6:0], wdata0_3[63:0]`).
+     * **Behavior:** Writes on `posedge clk` if `weX`; reads are asynchronous multiplexors across 128 entries.
+     * **Goal:** Support up to 8-wide issue: each cycle, drain up to 4 results back to PRF and read up to 6 operands (2 µops × 3 operands each) for issue.
+   * **Verification:** Write and read random physical register indices; check for read/write consistency under multi-port contention.
+
+3. **Rename Table & Free-List – 32 Arch → 128 Phys**
+
+   * **Module:** `rename_unit_8wide.sv`
+
+     * **Inputs (per cycle):** For up to 8 decoded µops:
+
+       * `valid_in[j], rs1_arch_j[4:0], rs2_arch_j[4:0], rd_arch_j[4:0]` for j=0..7.
+       * `can_allocate_rob8` (ROB has ≥ 8 free entries) and `can_allocate_rs8` (RS has ≥ 8 free slots).
+       * `free_list_count[6:0] ≥ 8`.
+     * **Outputs:** For each µop j:
+
+       * `rs1_phys_j[6:0], rs2_phys_j[6:0], rd_phys_j[6:0], old_rd_phys_j[6:0]`, `rename_valid_j` (indicates mapping was successful).
+       * Update `arch_to_phys[rd_arch_j] = rd_phys_j`.
+       * Remove `rd_phys_j` from free list.
+       * If µop is a branch that needs checkpoint, snapshot the entire `arch_to_phys` table (32 entries × 7 bits) and push to `checkpoint_stack`.
+     * **Internals:**
+
+       * `arch_to_phys[0..31]`: current mapping.
+       * `free_list[F_SIZE]`: circular FIFO buffer of free phys registers (initially {32..127}).
+       * `checkpoint_stack[BR_STACK_DEPTH]`: store old `arch_to_phys` tables on each branch rename (depth = max in-flight branches, e.g., 64).
+     * **Recovery:** On branch mispredict, restore `arch_to_phys` from `checkpoint_stack[top]` and push back any phys regs allocated after that branch to `free_list`.
+   * **Verification:**
+
+     * UVM test drives random sequences of µops (branches, writes) and checks that:
+
+       * Mappings `arch_to_phys` are correct.
+       * Free list always has correct count.
+       * Checkpoint/rollback works: simulate a branch, allocate 3 µops, force mispredict, restore, then allocate different µops and confirm no collisions.
+
+---
+
+## 4. Reorder Buffer, Reservation Stations, Issue Queue (Stages 7–10)
+
+1. **Reorder Buffer (ROB) – 256 Entries**
+
+   * **Module:** `rob256.sv`
+
+     * **I/O:**
+
+       * **Allocate Port (per cycle, up to 8 entries):** `rob_alloc_valid[j], dest_phys_j[6:0], old_dest_phys_j[6:0], is_store_j, is_branch_j, is_exception_mpu_j, …` → returns `rob_idx_j[7:0]` and `rob_alloc_ready`.
+       * **Writeback Port (up to 8 µops can finish per cycle):** `rob_wb_valid[k], rob_wb_idx[k][7:0], rob_wb_data[k][63:0], rob_wb_exception[k]`.
+       * **Commit Interface:**
+
+         * `clk, rst_n`, `commit_ready` (when timer/exception allows commit).
+         * Outputs each cycle: `commit_valid, commit_idx[7:0], commit_rd_phys[6:0], commit_old_phys[6:0], commit_is_store, commit_store_data[63:0], commit_exception_flag, commit_branch_mispredict, commit_branch_target[63:0]`.
+         * On commit: free `old_rd_phys` → return to rename free-list; if branch mispredict, signal pipeline flush and pass `branch_target` to IF.
+     * **Internals:**
+
+       * Circular array of 256 entries: each holds `dest_phys, old_dest_phys, ready_bit, exception_flag, is_store, is_branch, store_data, store_addr, …` plus branch checkpoint pointer.
+       * `head_ptr, tail_ptr, count`.
+       * On `rob_wb_valid`, mark entry at `wb_idx` as `ready = 1` and capture result if needed.
+       * On commit cycle, if `rob[head].ready == 1`, assert `commit_valid`, present all commit fields, advance `head_ptr`.
+     * **Verification:** UVM scoreboard drives known sequences where µops finish out-of-order; check that commit order is correct and old phys regs are freed appropriately.
+
+2. **Reservation Stations & Issue Queue – 128 Entries, 8-Way**
+
+   * **Module:** `issue_queue_8wide.sv`
+
+     * **Inputs (per cycle):**
+
+       * **Dispatch (alloc up to 8 new entries):** `iq_alloc_valid[j], func_type_j (0=int,1=fp,2=vector,3=mem,4=branch), src1_phys_j, src2_phys_j, src3_phys_j (for FMA), dest_phys_j, rob_idx_j, pred_mask_j (for vector), is_load_j, is_store_j, …`
+       * **Wakeup Broadcasts:** up to 8 destinations per cycle: `(wakeup_tag[m][6:0], wakeup_data[m][63:0], wakeup_valid[m])`. Each RS entry that matches tag in `srcX_phys` sets `readyX = 1` and captures `wakeup_data` into an internal operand buffer.
+       * **Functional Unit Status (per cycle):** `fu_int_free, fu_mul_free, fu_vec_free, fu_mem_free, fu_branch_free` signals to know which FUs can accept µops.
+     * **Outputs (per cycle):**
+
+       * **Issue:** Up to 8 µops `issue_valid[p], issue_dest_phys[p][6:0], issue_rob_idx[p][7:0], issue_op1[p][63:0], issue_op2[p][63:0], issue_op3[p][63:0], issue_control_signals[p]`, routed to their FUs.
+       * **Stall Signal:** `iq_full` if not enough free entries to accept 8 new µops next cycle.
+     * **Internals:**
+
+       * Four separate RS arrays (int-RS 32 entries, fp-RS 32, vec-RS 32, mem-RS 16, branch-RS 16; total 128).
+       * Each entry has: `valid, func_type, src1_tag, src2_tag, src3_tag, operand1_data, operand2_data, operand3_data, ready1, ready2, ready3, dest_phys, rob_idx, pred_mask`
+       * Six wakeup buses: each broadcast can wake multiple entries.
+       * **Schedule Algorithm:** Each cycle, scan through RS entries (eight in parallel with priority encoding) for entries where `ready1 & ready2 & ready3` (if vector) or `ready1 & ready2` (otherwise) and appropriate `fu_X_free` is high. Select up to 8 µops—match functional unit count: e.g., up to 2 int ALUs, 1 mul, 1 branch, 2 mem, 2 vector.
+       * Upon issue: mark `valid = 0` for issued entries, decrement free counters.
+     * **Verification:**
+
+       * UVM driver allocates a flood of µops with random dependencies. The scoreboard drives wakeup and functional unit readiness signals; verify that µops issue only when operands are ready and that issue width (≤ 8) is respected. Cover dependencies, chained wakeups, and RS eviction.
+
+---
+
+## 5. Execution Units (Stages 10–15)
+
+1. **Integer ALUs (2 Pipes) & Multiply/Divide Unit**
+
+   * **Module:** `int_alu2.sv`
+
+     * Two parallel 64-bit ALU pipelines (`ADD, SUB, AND, OR, XOR, SHIFT, SLT, …`). Each has latency = 1 cycle.
+     * Each pipe has inputs: `op1[63:0], op2[63:0], alu_ctrl[3:0], dest_phys[6:0], rob_idx[7:0]` → outputs `result[63:0], dest_phys, rob_idx`, valid next cycle.
+   * **Module:** `muldiv_unit.sv`
+
+     * One 64-bit multiplier pipelined in 3 stages (latency = 3 cycles) and one divider in 20 stages (latency = 20 cycles).
+     * Inputs for multiply µop: `a, b, dest_phys, rob_idx, valid_in_mul`; outputs after 3 cycles: `result, dest_phys, rob_idx, valid_out_mul`.
+     * For divide µop: `dividend, divisor, dest_phys, rob_idx`, produce quotient after 20 cycles.
+   * **Verification:** Feed randomized values for add, sub, mul, div, check against golden model. Cover overflow and sign/zero flags.
+
+2. **Branch Unit (with Early Resolution in EX)**
+
+   * **Module:** `branch_unit.sv`
+
+     * Inputs: `pc_ex[63:0], rs1_val[63:0], rs2_val[63:0], branch_ctrl[2:0] (BEQ, BNE, BLT, BGE, …), target_imm[31:0], is_branch, is_jalr`
+     * Outputs (in 1 cycle):
+
+       * `actual_taken`, `actual_target[63:0]`, `exception (misaligned target if JALR)`, `pred_mispredict` (given predicted target/taken from predictor), `br_pred_upd_info` to send to predictor for update.
+     * **Latency:** 1 cycle (EX stage).
+     * **Verification:** With random branch offsets and random register values, ensure correct compare outcome, target calculation, and detection of mispredictions.
+
+3. **Load/Store Unit (LSU) – 2 Ports**
+
+   * **Module:** `lsu.sv`
+
+     * **I/O:**
+
+       * Accept up to 2 µops per cycle: `is_load, is_store, addr[63:0], store_data[63:0], store_size[2:0], dest_phys, rob_idx, pred_mask (for vector operations)`.
+       * Access L1 D-cache: `l1_dcache_req[1:0], l1_dcache_addr[127:0], l1_dcache_wdata[127:0], l1_dcache_wstrb[15:0]`.
+       * Receive back `l1_dcache_rdata[127:0], rdy[1:0]`.
+       * Send wakeup to ROB when data ready.
+     * **Internals:**
+
+       * **Load Queue (32 entries):** Track pending loads, reorder so younger loads cannot bypass older stores to same address.
+       * **Store Buffer (32 entries):** Hold stores until they commit (ROB retire). On commit, send `store_data` to D-cache or next level.
+       * **Memory Ordering:** Enforce memory model: allow loads to pass older stores only if they do not alias. Forward from store buffer on address match.
+       * **Vector LS Support:** For vector loads/stores, expand into up to 8 lane accesses, handling gather/scatter (each lane’s address = `base + index[i]*scale`).
+     * **Verification:**
+
+       * UVM driver issues random sequences of loads/stores with overlapping addresses; scoreboard checks memory ordering.
+       * Test store-to-load forwarding.
+       * For vector LS, test gather/scatter correctness versus golden model.
+
+4. **Floating-Point / Vector Unit (512-bit AVX-Style)**
+
+   * **Module:** `vector_fma512.sv`
+
+     * **I/O:**
+
+       * Accept up to 2 vector µops per cycle (if resources allow): `src1[511:0], src2[511:0], src3[511:0], opcode_vec[3:0] (VADD, VMUL, VFMA, VAND, VSHUFFLE, …), pred_mask[63:0], dest_phys[6:0], rob_idx[7:0], valid_in`.
+       * After latency = 5 cycles (FMA pipelined), produce `result[511:0], dest_phys, rob_idx, valid_out`.
+     * **Internals:**
+
+       * Break 512 bits into eight 64-bit lanes; each lane has a 64×64 multiplier and 64-bit adder, pipelined in 5 stages.
+       * Masking: only update lanes where `pred_mask[i] = 1`.
+       * Issue: on wakeup broadcast, `ready1_j, ready2_j, ready3_j` per µop entry in vector RS.
+     * **Verification:**
+
+       * Random vectors (`A[i]`, `B[i]`, `C[i]`), check `A[i]*B[i] + C[i]` for i=0..7 against golden model.
+       * Cover special cases (zero, NaN, overflow if FP included).
+
+5. **Integration of FUs**
+
+   * **Module:** `ex_stage.sv`
+
+     * Collect issued µops from `issue_queue_8wide.sv` each cycle: up to 2 integer ALU, 1 multiply/divide, 1 branch, 2 loads, 2 vector.
+     * Route them to the appropriate `int_alu2`, `muldiv_unit`, `branch_unit`, `lsu`, `vector_fma512`.
+     * Collect back completed results and broadcast them on the wakeup bus back to `issue_queue_8wide.sv` and `rob256.sv`.
+   * **Verification:**
+
+     * For every µop retired by ROB, compare the result (from write-back) to golden model’s output. Cover multi-cycle operations (divider) and vector masking.
+
+---
+
+## 6. Branch Predictor (Stages 3–8 in the Pipeline)
+
+1. **Return Stack Buffer (RSB, 32 Entries)**
+
+   * **Module:** `rsb32.sv`
+
+     * 32-depth stack: push (`pc+4`) on every CALL, pop on every RET.
+     * On RET at decode: output `pred_target = top_of_stack`.
+     * On mispredict roll-back, restore the RSB pointer to its value at branch rename time.
+   * **Verification:** Directed tests: nested CALL/RET sequences; flush on mispredict and check pointer.
+
+2. **Branch Target Buffer (BTB, 4096×8-way)**
+
+   * **Module:** `btb4096_8w.sv`
+
+     * Inputs: `clk, rst_n, req_pc[63:0], is_branch, is_conditional, update_pc[63:0], update_target[63:0], update_valid, update_had_exception`
+     * Outputs: `pred_target[63:0], pred_taken` (for unconditional, always taken; for conditional, forward to TAGE).
+     * Replacement = 2-bit pseudo-LRU per set.
+   * **Verification:** Random branch PC sequences; confirm correct hit/miss & replacement.
+
+3. **TAGE Predictor (5 Tables, each 1024 Entries)**
+
+   * **Module:** `tage5.sv`
+
+     * **Structure:**
+
+       * `GHR[0..63]` global history register (64 bits).
+       * Five tables: lengths \[0, 8, 16, 32, 64], each with `TABLE_SIZE=1024`, so index = `pc[11:2] ⊕ hash(GHR[0:len_i])`.
+       * Each entry: `tag[12:0], counter[2:0], useful[1:0]`.
+       * Base bimodal predictor (1024 2-bit counters) for history = 0.
+     * **Prediction:**
+
+       1. Compute indices for T0..T4. Search from T4→T0 for matching `tag_i`. If found, use that `counter_i[2]` as taken/not. If none, use bimodal.
+       2. Query BTB for target PC if taken.
+     * **Update (on retire):**
+
+       * If mispredicted or low confidence, allocate a new entry in the longest history table with a “useful=0” and initial counter=weakly taken/not.
+       * Adjust `counter_i` and `useful_i` based on correct outcome.
+     * **Verification:**
+
+       * Feed branch trace from SPEC benchmarks; measure accuracy vs. golden software predictor. Check counter saturation and misprediction rate.
+
+4. **Indirect Branch Predictor (IBP, 512×4-way)**
+
+   * **Module:** `ibp512_4w.sv`
+
+     * Each entry: `(pc_tag[11:2], target_tag[11:2], target[63:0], valid)`.
+     * On an indirect branch at decode: `idx = hash(pc[11:2], last_target[11:2]) mod 512, compare tags, if hit → output `predicted\_target\`; else miss.
+     * On indirect branch retire: allocate or update entry with `(pc, actual_target)`.
+   * **Verification:** Random indirect calls/jumps; check lookup and replacement.
+
+5. **Branch Predictor Top-Level**
+
+   * **Module:** `branch_predictor_top.sv`
+
+     * Instantiates: `rsb32`, `btb4096_8w`, `tage5`, `ibp512_4w`.
+     * **Inputs:**
+
+       * From ID stage: `pc_id, is_call, is_ret, is_cond_branch, is_uncond_branch, is_indirect, last_target` (for IBP hashing).
+       * From COM stage: `pc_retire, actual_taken, actual_target, is_branch_retire, is_indirect_retire`.
+     * **Outputs:**
+
+       * To IF stage: `predicted_pc[63:0], pred_taken` each cycle.
+       * To TAGE/BTB/IBP on retire: update signals.
+     * **Control Flow:**
+
+       1. If `is_ret` → `rsb32.pop()` → `pred_pc`.
+       2. Else if `is_uncond_branch` → `btb4096.predict(pc_id) → pred_pc`.
+       3. Else if `is_cond_branch` → `tage5.predict(pc_id) → {pred_taken, pred_pc = btb4096.lookup(pc_id)}`.
+       4. Else if `is_indirect` → `ibp512.predict(pc_id) → pred_pc`.
+       5. Else → `pred_taken=0, pred_pc=pc+4`.
+       6. On retire, send `(pc_retire, actual_taken, actual_target)` to `tage5` and `btb4096`. Send `(pc_retire, actual_target)` to `ibp512`. Send CALL/RET to `rsb32` at rename.
+     * **Verification:**
+
+       * UVM tests must drive ID and COM interfaces with random and real branch traces, check that the combined predictor’s accuracy meets target (\~97 %).
+       * Cover: RSB under/overflow, BTB aliasing, TAGE table allocation, IBP correctness.
+
+---
+
+## 7. Multi-Level Cache Hierarchy & Coherence (Stages 15–18)
+
+1. **L1 Data Cache – 64 KB, 8-way**
+
+   * **Module:** `l1_dcache_64k_8w.sv`
+
+     * **Params:** `LINE_BYTES=64, ASSOC=8, SETS=128`, 4 cycles hit latency.
+     * **I/O:**
+
+       * From LSU: `req_valid, addr[63:0], wdata[63:0], wstrb[7:0], is_read, is_write, rob_idx, dest_phys`.
+       * To LSU/EX: `rdata[63:0], ready, fault` after hit or forwarded store.
+       * To L2: `l2_req_valid, l2_addr, l2_wdata, l2_wstrb, is_write`, and receive `l2_rsp_valid, l2_rdata`.
+     * **Internals:**
+
+       * Tag array `[ASSOC][SETS]`: stores `(valid, dirty, tag[51:0])`.
+       * Data array `[ASSOC][SETS][512 bits]`.
+       * Pseudo-LRU bits (7 bits per set).
+       * Write-buffer (8 entries) for evicted dirty lines.
+       * MSHR (8 entries) to track pending misses to L2.
+       * **Hit Flow:** return data in 4 cycles.
+       * **Miss Flow:** send request to L2, allocate MSHR; on L2 return, fill line, resume the stalled load/store.
+       * **Write-Allocate:** On write miss, fetch line, then update.
+     * **Verification:**
+
+       * UVM sequences of loads/stores that hit/miss; compare to a golden simple memory (array) for data correctness.
+       * Cover eviction, replacement, write-back, MSHR stall.
+
+2. **L2 Cache – 1 MB, 8-way (Per Core)**
+
+   * **Module:** `l2_cache_1m_8w.sv`
+
+     * **Params:** `LINE_BYTES=64, ASSOC=8, SETS= (1MB/64B)/8 = 2048`, 12 cycles hit latency.
+     * **I/O:**
+
+       * From L1: `l1_req_valid, l1_addr, l1_wdata, l1_wstrb, is_write, core_id, mshr_id`
+       * To L1: `l1_rsp_valid[mshr_id], l1_rdata[mshr_id]`
+       * To L3: `l3_req_valid, l3_addr, l3_wdata, l3_wstrb, is_write`.
+       * Receive `l3_rsp_valid, l3_rdata, evict_info`.
+     * **Internals:**
+
+       * Tag array `[8][2048]`: `(valid, dirty, tag[51:12])`, LRU bits (7 bits per set).
+       * Data array `[8][2048][512 bits]`.
+       * MSHR (16 entries) to track in-flight misses to L3.
+       * Write buffer (16 entries) for evicted dirty lines destined to L3.
+       * **Hit Flow:** return data to L1 in 12 cycles.
+       * **Miss Flow:** send to L3, allocate MSHR; on L3 return, fill and service L1’s request.
+     * **Coherence Protocol:** Maintain MESI states per line; on write miss, invalidates other sharers in L1.
+     * **Verification:**
+
+       * UVM sequences with concurrent L1 misses; verify data correctness and MESI transitions.
+       * Simulate two cores writing/reading same address → check L2 directory invalidates properly.
+
+3. **L3 Cache – 16 MB, 8-way (Shared Among 4 Cores)**
+
+   * **Module:** `l3_cache_16m_8w.sv` (four slices of 4 MB each, connected via interconnect)
+
+     * **Params:** Each slice: `SLICE_BYTES=4 MB, ASSOC=8, SETS=(4MB/64B)/8=8192`, 25 cycles hit latency.
+     * **I/O:**
+
+       * From each L2: `l2_req_valid[c], l2_addr[c], l2_wdata[c], l2_wstrb[c], is_write[c], core_id=c`.
+       * To L2: `l2_rsp_valid[c], l2_rdata[c]`, plus invalidation requests.
+       * To DRAM: `dram_req_valid, dram_addr, dram_wdata, dram_wstrb, is_write`.
+       * From DRAM: `dram_rsp_valid, dram_rdata`.
+     * **Internals:**
+
+       * Tag array `[8][8192]`, data array `[8][8192][512 bits]`, 7 bits pseudo-LRU per set.
+       * Directory bits per line: a 4-bit vector indicating which L2 (core) holds this line in a shared/exclusive/modified state.
+       * MSHR (32 entries) for in-flight requests to DRAM.
+       * Write buffer (32 entries) for writebacks to DRAM.
+       * **Hit Flow:** respond to L2 in 25 cycles.
+       * **Miss Flow:** if no directory sharers, fetch from DRAM in \~100 cycles (simulated); then supply to L2(s) and update directory. If sharer exists in Modified state at some L2, forward data from that L2 (snooping).
+       * **Coherence:** On a write request from any L2, send invalidations to all other sharers (arbitrated over interconnect).
+     * **Verification:**
+
+       * UVM test: Two cores alternately write/read same line → ensure directory state transitions follow MESI and no stale data.
+       * Random multi-core memory traffic to test stress on directory and MSHRs.
+
+4. **DRAM Model**
+
+   * **Module:** `dram_model.sv`
+
+     * **I/O:**
+
+       * `req_valid, addr[63:0], wdata[511:0], wstrb[63:0], is_write`.
+       * After fixed latency (`#(100)` cycles), return `rsp_valid, rdata[511:0]`.
+     * **Verification:** Self-check that written data is returned on subsequent reads for same line.
+
+---
+
+## 8. Full MMU (Stages 10–13)
+
+1. **L1 TLBs (Instruction & Data) – 64 entries, 8-way**
+
+   * **Module:** `tlb_l1_64e_8w.sv`
+
+     * **Params:** `ENTRIES=64, ASSOC=8, PAGE_BITS=12, OFFSET=12, INDEX_BITS=log2(64/8)=3, TAG_BITS=64−12−3=49`.
+     * **I/O (per access):** `va[63:0], access_type (read/write/execute), lookup_valid`.
+
+       * Returns in 1 cycle: `hit, pa[63:0], perm_fault, asid_match` (for virtualization), `refill_req`.
+     * **Refill Interface:** `refill_valid, refill_va[63:0], refill_ppn[39:0], refill_perm_bits, refill_asid, refill_page_size (4K/2M/1G)`.
+
+       * On refill, allocate an entry via Pseudo-LRU.
+     * **Verification:**
+
+       * UVM tests: random VA lookups with known page tables in DRAM; ensure correct PA returned or fault raised.
+       * Cover page-size variations, ASID tagging, and replacement.
+
+2. **L2 TLB – 512 entries, 8-way**
+
+   * **Module:** `tlb_l2_512e_8w.sv`
+
+     * **Similar to L1 TLB**, but with 512 entries, 8-cycle hit latency.
+     * On L2 miss, send VA to Page Walker FSM.
+     * On hit, return `ppn` to L1 and L1 inserts a new entry.
+     * **Verification:**
+
+       * Test random VA sequences including large and small pages; verify correct multi-level TLB fills, refill and invalidation.
+
+3. **Page Walker (Up to 8 In-Flight)**
+
+   * **Module:** `page_walker8.sv`
+
+     * **I/O:**
+
+       * Input: `walk_req_valid[k], walk_va[k][63:0], asid[k], perm_type[k]` for k=0..7.
+       * Output: `walk_rsp_valid[k], walk_rsp_pa[k][63:0], walk_rsp_fault[k], walk_rsp_page_size[k]`.
+     * **FSM:**
+
+       1. For each walk, read PTE at PML4: `pa1 = CR3[51:12] <<12 | va[47:39]<<3`; send to `l3_cache_…` to retrieve 8 bytes.
+       2. Check PS bit: if 1 (1 GB page), form final PA = `{PTE1.PPN[51:30], va[29:0]}`, return.
+       3. Else read PDPT: `pa2 = {PTE1.PPN, va[38:30]<<3}`. On return, check PS for 2 MB.
+       4. Else read PD: `pa3 = {PTE2.PPN, va[29:21]<<3}`.
+       5. Else read PT: `pa4 = {PTE3.PPN, va[20:12]<<3}`, then final PA = `{PTE4.PPN, va[11:0]}`.
+       6. Insert into L2 TLB & L1 TLB.
+     * **Resources:** Each walk uses a separate small FSM state and an MSHR entry so misses in cache can overlap.
+     * **Verification:**
+
+       * UVM directed walks: set up guest page tables in DRAM, walk them, check PAs against golden RISC-V model.
+       * Ensure up to 8 concurrent walks work without collisions or deadlocks.
+
+4. **Integration into LSU & I-Fetch**
+
+   * Modify `lsu.sv` and `l1_dcache_64k_8w.sv` so that before each D-cache access, VA is sent to `tlb_l1_64e_8w`; if miss, cascade to `tlb_l2 → page_walker8`; stall µop until PA returns.
+   * Similarly, in `l1_icache`, before reading instruction, run PC through `i_tlb_l1_64e_8w`.
+   * **Verification:**
+
+     * UVM test: random VA loads/stores, plus instruction fetches, check that pipeline correctly stalls on TLB misses, refills, and then proceeds.
+     * Cover large pages (2 MB, 1 GB), permission faults (NX, write to read-only page).
+
+---
+
+## 9. SMT & Multi-Core Scalability (Stages 13–20)
+
+1. **SMT Logic (2 Threads/Core)**
+
+   * **Module:** `smt_arbitration.sv`
+
+     * **Inputs (per cycle):** µop valid signals from Thread0 and Thread1 at each stage (Rename, Dispatch, Issue).
+     * **Outputs:** grant signals indicating which thread’s µop is processed this cycle for each shared resource (Rename port, PRF read port, Issue slots, FU port).
+     * **Strategy:** Round-robin priority: alternate threads each cycle if both have µops ready. If only one thread active, grant it.
+     * **State:** keep last-winner bit per resource to enforce fairness.
+     * **Verification:** UVM test that drives both threads simultaneously. Check no starvation, and that when only one thread has work, it doesn’t wait.
+
+2. **Core Tile (Combine Two SMT Threads + Shared Resources)**
+
+   * **Module:** `core_tile_2smts_8wide.sv`
+
+     * Instantiate two copies of:
+
+       * `rename_unit_8wide`, `rob256`, `issue_queue_8wide`, `smt_arbitration`.
+     * Share:
+
+       * `phys_regfile_128x64`, `ex_stage.sv` (all FUs), `l1_icache_64k_8w`, `l1_dcache_64k_8w`, `bp_top`, `tlb_l1_64e_8w`, `lsu.sv`, `vector_fma512.sv`, `mmu` modules.
+     * Use `smt_arbitration` to multiplex competing rename requests, RS inserts, FU issues, TLB lookups, and commit/ROB resources.
+     * Each thread has its own architectural register file (loaded on hypercall/interrupt) but they share physical registers and ROB; track thread ID with each ROB/RS entry.
+   * **Verification:**
+
+     * UVM test that schedules µops on both threads, checks that FUs are shared fairly and that no data races occur in PRF.
+     * Launch two independent loops, measure effective IPC = \~6 per thread when threads don’t contend for FUs, and \~8 total when they do.
+
+3. **Interconnect & L3 Coherence (4-Core Chip; 2×2 Mesh)**
+
+   * **Module:** `router_5port.sv`
+
+     * Each tile (core+L2 slice or L3 slice) has 5 ports: Local, North, South, East, West.
+     * Inputs: `in_port[p].valid, in_port[p].packet[255:0]`, `credit_in[p]`.
+     * Outputs: `out_port[q].valid, out_port[q].packet[255:0]`, `credit_out[q]`.
+     * **Routing:** XY routing: if `dest_x != curr_x`, route to East/West; else to North/South; if `dest == curr`, route to Local.
+     * **Flow Control:** 4-credit buffering per port to prevent deadlock.
+   * **Module:** `l3_slice_4m_8w.sv` (for 4 MB slice, but integrate directory state)
+
+     * Each slice sits at a (x,y) coordinate. Receives requests from neighboring routers.
+     * Maintains directory bits for all addresses hashed to this slice.
+     * On `req_read[c]` from L2: if line in state S or M, supply to requester; if not present, fetch from DRAM.
+     * On `req_write[c]`: invalidate other sharers via sending invalidation packets to their L2’s, wait for acks, then grant exclusive.
+     * **Latency:** 25 cycles to hit, 100 cycles to DRAM miss.
+   * **Module:** `interconnect_mesh_2x2.sv`
+
+     * Instantiate 4 routers for core+L2 tiles at (0,0), (1,0), (0,1), (1,1).
+     * Instantiate 4 routers for L3 slices at same coords. Connect core tile’s local port to its L2 slice, L2 slice → router, router → L3 router.
+   * **Top-Level (4-Core SoC)**
+
+     * **Module:** `riscv_soc_4core.sv`
+
+       * Instantiate 4 copies of `core_tile_2smts_8wide`.
+       * Instantiate 4 copies of `l2_cache_1m_8w` (one per core) sharing with that core’s tile.
+       * Instantiate 4 copies of `router_5port` for L2-to-L3.
+       * Instantiate 4 copies of `l3_slice_4m_8w` (4 MB each, total 16 MB). Each L3 slice connects to one `router_5port`.
+       * Instantiate 4 copies of `router_5port` for L3 mesh.
+       * Instantiate `dram_model.sv`.
+     * **Connections:**
+
+       1. Each `core_tile` → its local L2.
+       2. `l2_cache` → L2 router’s Local port.
+       3. L2 router → L3 router via East/West/North/South (forming a 2×2 mesh).
+       4. L3 router → DRAM model if L3 miss.
+   * **Verification:**
+
+     * UVM multi-core tests: each core runs a microbenchmark; inject cross-core data sharing to stress coherence.
+     * Cover corner cases: write from core0, read from core2, invalidations must propagate through mesh.
+     * Measure latency from one core to another for shared data: \~25 cycles for L3 hit + 12 cycles L2 + 4 cycles L1.
+
+---
+
+## 10. Security & Virtualization (Optional Stubs to Complete Pipeline)
+
+1. **NX/SMEP/SMAP (Enforced via TLB & LSU/IF)**
+
+   * In `tlb_l1` and `tlb_l2`, add `perm_bits[2:0] = {X,D,W}`, where X=execute disable.
+   * In `i_tlb_l1` lookup: if `perm_bits.X=1`, raise `fault_instr_execute_disable`, flush pipeline.
+   * In `lsu`, before sending request to D-cache, check `perm_bits.W` (for stores) and `perm_bits.R` (read) vs. `privilege_level`; if CPL=0 (kernel) & SMEP=1 & VA is user, raise fault; if CPL=0 & SMAP=1 & VA is user & no override, raise.
+   * **Verification:** UVM test with CPL=0 & user page VA; load/store/fetch must trap.
+
+2. **SGX Enclave Stubs**
+
+   * Implement minimal FSM in `sgx_enclave.sv`:
+
+     * On `ECREATE`: reserve a region of memory (by setting a bit in an “EPCM” array).
+     * On `EADD`: copy data from DRAM → EPC memory, record in `EPCM[page]`.
+     * On `EINIT`: finalize, record enclave measurement.
+     * On `EENTER`: switch page tables to only allow EPC pages. Raise `sgx_fault` if out-of-enclave access.
+     * On `EEXIT`: restore page tables, resume.
+   * Integrate into `core_tile_2smts_8wide` such that, on `EENTER`, pipeline flushes and switches to EPC mode for IF and LSU.
+   * **Verification:** UVM directed tests for enclave creation, access, and exit.
+
+3. **SEV Memory Encryption Stub**
+
+   * For each DRAM write: XOR `wdata` with a per-VM key before passing to `dram_model`. On DRAM read, XOR again.
+   * Tag each core with a `VMID`; in `lsu` and `i_fetch`, when translating PA → true DRAM address, pass `(PA ⊕ VMID_KEY)` to `dram_model`.
+   * **Verification:** Write data from core0 under VMID=1, read back under VMID=1 (should match). Under VMID=2 (different), should get garbage.
+
+4. **Spectre/Meltdown Checks**
+
+   * In the EX stage: before a load issues to L1 D-cache, stall until the TLB lookup confirms permissions. Do not forward data from L1 to µop before permission check cycles complete.
+   * Insert a “SpecFetchFence” µop (like `LFENCE`) that blocks subsequent loads until prior branch predictions are retired.
+   * **Verification:** UVM sequence: attempt to read privileged data via speculative load—should not produce data until after exception.
+
+---
+
+## 11. UVM Verification Infrastructure (Across All Stages)
+
+1. **Common UVM Components**
+
+   * **DVFS BFM:** generate clocks at variable rates for each core tile, to mimic DVFS from Stage 11 (annotation only).
+   * **Reset Generator & Configuration:** broadcast `rst_n` and initial config registers (CSR) to every module.
+   * **Instruction Memory Model:** drive `l1_icache_64k_8w` from a DRAM-backed instruction memory array.
+   * **Data Memory Model:** UVM BFM that drives D-cache misses to `dram_model`.
+   * **Register File BFM:** compare writes to ARF vs. golden model on commit.
+   * **Coverage:**
+
+     * **Functional Coverage:**
+
+       * For each µop type (all RISC-V opcodes), record whether seen.
+       * For each predictor table index/tag pair, record allocation events.
+       * For each cache level, record hit/miss patterns.
+       * For each TLB level, record miss/latency events.
+     * **Code Coverage:** ensure that all if/else/always blocks in RTL get exercised.
+     * **Toggle Coverage:** ensure all bits in LUTs and registers toggle.
+
+2. **Scoreboard & Reference Checker**
+
+   * Instantiate the RISC-V golden model in the UVM testbench.
+   * On each retired µop from `rob256.sv` (commit stage), compare architectural register write (RD) to golden model’s output.
+   * For memory reads at commit: compare data returned from caches to golden model’s memory state.
+   * For exceptions, branches, TLB faults, ensure that RTL’s exception vector matches golden model’s exception from same µop sequence.
+
+3. **Test Plans & Suites**
+
+   * **Unit Tests (Stage-by-Stage):**
+
+     1. **Decode & Rename:** random instructions, check correct µop fields, correct renaming.
+     2. **ROB/RS/Issue:** random dependency chains (e.g., `add x1,x0,5; add x2,x1,3; …`), ensure OOO execution is correct.
+     3. **FUs:** directed tests for integer/FP/vector ops.
+     4. **Caches/TLB:** random load/store patterns, TLB walk, page faults.
+     5. **Branch Predictor:** feed real branch traces, measure accuracy.
+     6. **Mesh & Coherence:** multi-core memory sharing patterns.
+   * **Integration Tests (Full CPU):**
+
+     * Boot a minimal RISC-V Linux image (in simulation) to ensure page tables, TLB, and syscalls work.
+     * Run microbenchmarks: integer compute, vector dot product, memory streaming, multi-threaded producer/consumer.
+     * Measure actual simulated IPC and pipeline occupancy to confirm \~6 IPC.
+   * **Regression:** Automate nightly runs of all UVM tests (20 million cycles each), collect coverage, flag any new uncovered RTL lines or functional holes.
+
+---
+
+## 12. Final Checklist & Sign-Off
+
+1. **Parameter Verification**
+
+   * Issue Width: 8 µops/cycle
+   * Pipeline Depth: 20 stages (IF1, IF2, ID1, ID2, RN, RS, SCH, EX1–EX10, MMU insts, LS, WB, COM)
+   * SMT: 2 threads/core, each with separate ROB/rename but shared FUs.
+   * Caches: L1 64 KB 8-way, L2 1 MB 8-way per core, L3 16 MB 8-way shared.
+   * TLB: L1 64 entries 8-way, L2 512 entries 8-way, 8 in-flight page-walks.
+   * Vector: 32 × 512-bit registers, two 5-stage 512-bit FMA pipelines, vector LSU with gather/scatter.
+   * Branch Predictor: RSB 32, BTB 4096 × 8, TAGE 5 tables × 1024 entries, IBP 512 × 4.
+   * Coherence: MESI directory in L3, 2×2 mesh.
+   * Performance Targets: 4–5 GHz (20 stage), 6 IPC sustained (measured in simulation).
+   * Verification: UVM with functional, assertion, and code coverage.
+
+2. **Deliverables (Final)**
+
+   * **RTL Code Tree** (`/rtl/...`) containing all modules above.
+   * **UVM Testbench** (`/tb/...`) with coverage meaningfully exercised.
+   * **Golden Reference Model** (`/isa/golden_model.*`) with API hooks for UVM scoreboard.
+   * **Documentation** (`/docs/`) including:
+
+     1. Architectural specification (block diagrams, pipeline stage descriptions).
+     2. Interface specifications for each module (I/O ports, timing).
+     3. Verification plan (coverage goals, test descriptions).
+   * **Makefile / CI Scripts** that compile RTL, run UVM tests, and publish coverage reports.
+
+3. **Milestones & Timeline**
+
+   * **Month 1–2:**
+
+     * Complete Golden Reference model.
+     * Write and verify Decoder (8-wide) + ARF + PRF + Rename units.
+   * **Month 3–4:**
+
+     * Implement ROB256 + IssueQueue128 + RS + SMT arbitration.
+     * Implement Integer ALUs & Mul/Div and basic LSU (no caches yet).
+     * Verify OOO pipeline to 6 IPC with a simple scratch memory.
+   * **Month 5–6:**
+
+     * Add Branch Predictor (`bp_top`) and integrate with IF pipeline.
+     * Build L1 I-cache and D-cache (64 KB 8-way).
+     * Verify branch accuracy, cache hit/miss.
+   * **Month 7–8:**
+
+     * Build L2 1 MB 8-way and L3 16 MB 8-way + coherence + interconnect mesh.
+     * Verify multi-core coherence.
+   * **Month 9–10:**
+
+     * Add full MMU (L1/L2 TLB, page walker), integrate into LSU & IF.
+     * Verify page fault, large page, TLB refill.
+   * **Month 11–12:**
+
+     * Add Vector Unit (512 bits) + vector LSU.
+     * Add virtualization stubs (VMCS/EPT) and security stubs (NX, SMEP/SMAP).
+     * Tie everything into `core_tile_2smts` and `riscv_soc_4core`.
+     * Full UVM regression, achieve > 90 % coverage.
+
+Once all steps are complete—and every UVM test passes with coverage goals met—you will have a **single, monolithic Verilog design** of a full‐feature, AMD/Intel-class‐performance 64-bit RISC-V CPU (multi‐core, SMT, OoO, wide vector, full MMU, multi-level caches, UVM-verified).
