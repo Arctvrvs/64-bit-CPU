@@ -9,5 +9,8 @@ Implemented modules so far:
 - `l1_icache_64k_8w` – placeholder for the L1 instruction cache
 - `if_buffer_16` – FIFO buffer between fetch and decode
 - `decoder8w` – 8-wide instruction decoder placeholder
+- `arch_regfile_32x64` – 32×64-bit architectural register file
+- `phys_regfile_128x64` – 128×64-bit physical register file
+- `rename_unit_8wide` – simple rename unit with free list
 
 Development follows the tasks outlined in `docs/tasks/cpu.txt`.
