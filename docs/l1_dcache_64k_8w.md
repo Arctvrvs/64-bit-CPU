@@ -33,4 +33,5 @@ Each access is performed against a backing array representing 64&nbsp;KB of
 memory. Writes update bytes according to the strobe mask. Reads return the
 stored value. All operations appear to complete in one cycle with no stalls,
 which is sufficient for initial bring-up.
-\nA small Python helper `L1DCache` in `rtl/cache/l1_dcache.py`\nprovides an in-memory model used by unit tests.
+\nA small Python helper `L1DCache` in `rtl/cache/l1_dcache.py`\nprovides an in-memory model used by unit tests. When given a
+`CoverageModel` instance it logs cache hits and misses for the L1 level.

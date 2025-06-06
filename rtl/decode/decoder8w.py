@@ -6,8 +6,12 @@ class Decoder8W:
         mask = 1 << (bits - 1)
         return (val & (mask - 1)) - (val & mask)
 
-    def decode(self, instructions):
-        """Decode a list of up to eight instruction words."""
+    def decode(self, instructions, coverage=None):
+        """Decode a list of up to eight instruction words.
+
+        When *coverage* is provided, opcodes and immediate values are recorded
+        using the :class:`CoverageModel` interface.
+        """
         results = []
         for instr in instructions:
             opcode = instr & 0x7F
@@ -36,6 +40,10 @@ class Decoder8W:
                 imm |= ((instr >> 12) & 0xFF) << 11
                 imm |= (instr >> 31) << 19
                 imm = self._sign_extend(imm << 1, 21)
+
+            if coverage:
+                coverage.record_opcode(opcode)
+                coverage.record_immediate(imm)
 
             results.append({
                 "opcode": opcode,

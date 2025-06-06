@@ -5,6 +5,10 @@ contains five tables of 1024 entries each. Every entry stores a 2‑bit
 saturating counter. Tables are indexed by a hash of the program counter and a
 small global history shift register.
 
+The Python ``TAGEPredictor`` used in unit tests can record allocation events
+when supplied with a ``CoverageModel``. Each new `(table, index, tag)` pair is
+logged via ``record_tage_event``.
+
 ## I/O Ports
 
 | Name | Dir | Width | Description |

@@ -24,7 +24,11 @@ Currently supported instructions include:
 
 Misaligned load or store addresses raise a `"misalign"` exception which can be
 queried via `get_last_exception()` after calling `step()`.
-Accessing an unmapped address triggers a `"page"` exception.
+Accessing an unmapped address triggers a `"page"` exception.  The model
+maintains a simple page table that maps virtual addresses to physical
+locations.  `load_memory()` automatically creates identity mappings for
+convenience and `map_page()` allows explicit virtual‐to‐physical entries.
+Page walks record coverage when a `CoverageModel` instance is supplied.
 
 Misaligned load or store addresses raise a `"misalign"` exception which can be
 queried via `get_last_exception()` after calling `step()`.
@@ -32,5 +36,7 @@ queried via `get_last_exception()` after calling `step()`.
 The `GoldenModel` class maintains an array of 32 general purpose registers,
 a dictionary based memory and the current program counter. The `step` method
 decodes and executes a single 32‑bit instruction. The helper
-`execute_bundle()` function can process a list of up to eight instructions
-for convenient use in fetch/decode unit testing.
+`execute_bundle()` function can process a list of instructions.  The higher
+level helper `issue_bundle(pc, insts)` decodes up to eight instructions using
+`Decoder8W`, executes them and returns both the decoded µops and the next
+program counter.

@@ -42,4 +42,6 @@ translation fault prevents the fetch from completing. This module is a
 placeholder and does not implement the full cache logic yet.
 
 A small Python helper `L1ICache` in `rtl/cache/l1_icache.py`
-provides an in-memory model used by the unit tests.
+provides an in-memory model used by the unit tests. When supplied with a
+`CoverageModel` instance the helper records L1 instruction cache hits and
+misses.

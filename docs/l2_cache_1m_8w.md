@@ -20,4 +20,5 @@ This stub will later be expanded to include tags, replacement and connection to
 lower memory.
 
 A simple Python `L2Cache` helper in `rtl/cache/l2_cache.py` mimics the
-behavior with a dictionary and is used by the unit tests.
+behavior with a dictionary and is used by the unit tests. When passed a
+`CoverageModel` object it records L2 cache hits and misses automatically.

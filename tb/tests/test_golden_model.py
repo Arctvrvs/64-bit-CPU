@@ -4,6 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from rtl.isa.golden_model import GoldenModel
+from tb.uvm_components.coverage import CoverageModel
 
 
 def encode_branch(funct3, rs1, rs2, imm):
@@ -395,6 +396,33 @@ class GoldenModelTest(unittest.TestCase):
         for i in range(8):
             expect = (i + 1) + 10 * (i + 1)
             self.assertEqual((gm.vregs[3] >> (64 * i)) & 0xFFFFFFFFFFFFFFFF, expect)
+
+    def test_page_table_translation(self):
+        gm = GoldenModel()
+        # physical location 0x800 mapped to virtual 0x1000
+        gm.load_memory(0x800, 0xDEADBEEF, map_va=0x1000)
+        gm.regs[1] = 0x1000
+        gm.step(encode_load(0x3, 2, 1, 0))
+        self.assertEqual(gm.regs[2], 0xDEADBEEF)
+        # write should fault due to read-only permission
+        gm.map_page(0x2000, 0x900, perm='r')
+        gm.regs[1] = 0x2000
+        gm.regs[2] = 0x55
+        gm.step(encode_store(0x3, 1, 2, 0))
+        self.assertEqual(gm.get_last_exception(), 'page')
+
+    def test_issue_bundle_api(self):
+        cov = CoverageModel()
+        gm = GoldenModel(coverage=cov)
+        insts = [0x00500093,  # addi x1,x0,5
+                 0x00a00113]  # addi x2,x0,10
+        uops, next_pc = gm.issue_bundle(0, insts, coverage=cov)
+        self.assertEqual(len(uops), 2)
+        self.assertEqual(gm.regs[1], 5)
+        self.assertEqual(gm.regs[2], 10)
+        self.assertEqual(next_pc, 8)
+        summ = cov.summary()
+        self.assertGreaterEqual(summ['opcodes'], 1)
 
 if __name__ == '__main__':
     unittest.main()

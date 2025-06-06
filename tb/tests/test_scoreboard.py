@@ -255,6 +255,7 @@ class ScoreboardTest(unittest.TestCase):
         )
         summary = cov.summary()
         self.assertEqual(summary["opcodes"], 3)
+        self.assertGreaterEqual(summary["immediates"], 2)
         self.assertEqual(summary["exceptions"]["illegal"], 1)
         self.assertEqual(summary["branches"], 2)
         self.assertEqual(summary["mispredicts"], 1)
