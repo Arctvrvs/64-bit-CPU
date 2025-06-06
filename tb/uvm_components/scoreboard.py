@@ -1,56 +1,81 @@
 class Scoreboard:
-    """Very small scoreboard for unit tests."""
+    """Reference checker using the :class:`GoldenModel`."""
 
-    def __init__(self):
+    def __init__(self, start_pc: int = 0, start_rob_idx: int = 0, coverage=None):
+        """Create a scoreboard.
+
+        Parameters
+        ----------
+        start_pc : int
+            Initial program counter for the golden model.
+        start_rob_idx : int
+            Starting reorder buffer index for commit order checks.
+        coverage : CoverageModel or ``None``
+            Optional coverage collector.
+        """
+
+        from rtl.isa.golden_model import GoldenModel
+
+        self.gm = GoldenModel(pc=start_pc)
+        self.trace = []
+        self.cycle = 0
+        self.expected_rob_idx = start_rob_idx
+        self.coverage = coverage
+
+        # simple expected/actual lists used by some unit tests
         self.expected = []
         self.actual = []
 
+    # ------------------------------------------------------------------
+    # Simple FIFO-style scoreboard helpers
+    # ------------------------------------------------------------------
     def add_expected(self, value):
         self.expected.append(value)
 
     def add_actual(self, value):
         self.actual.append(value)
 
-    def check(self):
+    def check(self) -> bool:
         return self.expected == self.actual
-    """Simple scoreboard using the GoldenModel for reference checking."""
 
-    def __init__(self, start_pc=0, start_rob_idx=0, coverage=None):
-
-    def __init__(self, start_pc=0):
-
-        from rtl.isa.golden_model import GoldenModel
-        self.gm = GoldenModel(pc=start_pc)
-        self.trace = []
-        self.cycle = 0
-
-        self.expected_rob_idx = start_rob_idx
-        self.coverage = coverage
-
-    def reset(self, pc=0, rob_idx=0):
-
-
-    def reset(self, pc=0):
-
+    # ------------------------------------------------------------------
+    def reset(self, pc: int = 0, rob_idx: int = 0):
         """Clear state and restart the golden model."""
+
         from rtl.isa.golden_model import GoldenModel
+
         self.gm = GoldenModel(pc=pc)
         self.trace.clear()
         self.cycle = 0
-
         self.expected_rob_idx = rob_idx
+        self.expected.clear()
+        self.actual.clear()
         if self.coverage:
             self.coverage.reset()
 
 
-    def commit(self, instr, rd_arch=None, rd_val=None,
-               is_store=False, store_addr=None, store_data=None,
-               is_load=False, load_addr=None, load_data=None,
-               next_pc=None, exception=None,
-               branch_taken=None, branch_target=None,
-               pred_taken=None, pred_target=None,
-               mispredict=None, rob_idx=None, *, increment_cycle=True):
-               mispredict=None, *, increment_cycle=True):
+    def commit(
+        self,
+        instr,
+        rd_arch=None,
+        rd_val=None,
+        *,
+        is_store=False,
+        store_addr=None,
+        store_data=None,
+        is_load=False,
+        load_addr=None,
+        load_data=None,
+        next_pc=None,
+        exception=None,
+        branch_taken=None,
+        branch_target=None,
+        pred_taken=None,
+        pred_target=None,
+        mispredict=None,
+        rob_idx=None,
+        increment_cycle=True,
+    ):
 
         """Check a committed instruction.
 
@@ -105,12 +130,11 @@ class Scoreboard:
         gm_exc = self.gm.get_last_exception()
         if self.coverage and gm_exc is not None:
             self.coverage.record_exception(gm_exc)
-        self.gm.step(instr)
-        gm_exc = self.gm.get_last_exception()
-        opcode = instr & 0x7F
+
         branch_instr = opcode in (0x63, 0x6F, 0x67)
         branch_taken_gm = branch_instr and (self.gm.pc != pc_before + 4)
         branch_target_gm = self.gm.pc if branch_taken_gm else None
+
         current_cycle = self.cycle
         if increment_cycle:
             self.cycle += 1
@@ -139,25 +163,18 @@ class Scoreboard:
         if branch_taken_gm and pred_target is not None:
             calc_misp |= pred_target != branch_target_gm
         if mispredict is not None:
-            if calc_misp != mispredict:
-                ok = False
+            ok &= calc_misp == mispredict
             mispred_flag = mispredict
         else:
             mispred_flag = calc_misp
+
         if self.coverage and branch_instr:
             self.coverage.record_branch(mispred_flag)
+
         if rob_idx is not None:
             if rob_idx != self.expected_rob_idx:
                 ok = False
             self.expected_rob_idx = (rob_idx + 1) & 0xFFFFFFFF
-        if mispredict is not None:
-            calc_misp = False
-            if pred_taken is not None:
-                calc_misp |= pred_taken != branch_taken_gm
-            if branch_taken_gm and pred_target is not None:
-                calc_misp |= pred_target != branch_target_gm
-            if calc_misp != mispredict:
-                ok = False
         self.trace.append({
             "cycle": current_cycle,
             "pc": pc_before,
@@ -176,9 +193,6 @@ class Scoreboard:
             "pred_target": pred_target,
             "mispredict": mispred_flag,
             "rob_idx": rob_idx,
-
-            "mispredict": mispredict,
-
         })
         return ok
 
@@ -238,15 +252,27 @@ class Scoreboard:
                 ]
                 f.write(",".join("" if v is None else str(v) for v in row) + "\n")
 
-    def commit_bundle(self, instrs, rd_arch_list=None, rd_val_list=None,
-                      is_store_list=None, store_addr_list=None,
-                      store_data_list=None, is_load_list=None,
-                      load_addr_list=None, load_data_list=None,
-                      next_pc_list=None, exception_list=None,
-                      branch_taken_list=None, branch_target_list=None,
-                      pred_taken_list=None, pred_target_list=None,
-                      mispredict_list=None, rob_idx_list=None):
-                      mispredict_list=None):
+    def commit_bundle(
+        self,
+        instrs,
+        rd_arch_list=None,
+        rd_val_list=None,
+        *,
+        is_store_list=None,
+        store_addr_list=None,
+        store_data_list=None,
+        is_load_list=None,
+        load_addr_list=None,
+        load_data_list=None,
+        next_pc_list=None,
+        exception_list=None,
+        branch_taken_list=None,
+        branch_target_list=None,
+        pred_taken_list=None,
+        pred_target_list=None,
+        mispredict_list=None,
+        rob_idx_list=None,
+    ):
         """Commit a bundle of instructions retiring in the same cycle.
 
         Parameters
