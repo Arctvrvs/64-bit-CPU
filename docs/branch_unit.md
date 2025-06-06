@@ -30,3 +30,6 @@ Given operand values and a branch control code, the unit compares the
 operands according to the branch type and produces an actual target
 address. It also reports whether a misprediction occurred based on the
 predicted inputs. All outputs are valid one cycle after the inputs.
+
+A lightweight Python helper `BranchUnit` located in
+`rtl/ex_units/branch_unit.py` mirrors this behavior for the unit tests.

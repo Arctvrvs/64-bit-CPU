@@ -3,42 +3,63 @@ project goals, task lists and interface specifications as development
 progresses.
 
 Module documentation:
-- [golden_model](golden_model.md)
+- [golden_model](golden_model.md) - Python reference with vector support
 - [pc_fetch](pc_fetch.md)
-- [l1_icache_64k_8w](l1_icache.md)
-- [if_buffer_16](if_buffer_16.md)
-- [decoder8w](decoder8w.md)
+ - [l1_icache_64k_8w](l1_icache.md) - Python model with TLB translation
+ - [if_buffer_16](if_buffer_16.md) - Python model
+ - [decoder8w](decoder8w.md) - Python model
 - [arch_regfile_32x64](arch_regfile_32x64.md)
 - [phys_regfile_128x64](phys_regfile_128x64.md)
 - [csr_file](csr_file.md)
-- [rename_unit_8wide](rename_unit_8wide.md)
-- [rob256](rob256.md)
+- [rename_unit_8wide](rename_unit_8wide.md) - branch checkpoints
 - [issue_queue_8wide](issue_queue_8wide.md)
-- [branch_unit](branch_unit.md)
-- [branch_predictor_top](branch_predictor_top.md)
+- [branch_unit](branch_unit.md) - Python model
+- [branch_predictor_top](branch_predictor_top.md) - Python model
 - [rsb32](rsb32.md)
-- [amo_unit](amo_unit.md)
-- [int_alu2](int_alu2.md)
-- [muldiv_unit](muldiv_unit.md)
+- [amo_unit](amo_unit.md) - Python model
+- [int_alu2](int_alu2.md) - Python model
+- [muldiv_unit](muldiv_unit.md) - Python model
 - [l1_dcache_64k_8w](l1_dcache_64k_8w.md)
-- [lsu](lsu.md)
+ - [lsu](lsu.md) - Python model with TLB translation
+- [vector_lsu](vector_lsu.md)
 - [tlb_l1_64e_8w](tlb_l1_64e_8w.md)
 - [btb4096_8w](btb4096_8w.md)
 - [tage5](tage5.md)
 - [ibp512_4w](ibp512_4w.md)
-- [vector_fma512](vector_fma512.md)
-- [l2_cache_1m_8w](l2_cache_1m_8w.md)
+- [vector_fma512](vector_fma512.md) - Python model
+ - [l2_cache_1m_8w](l2_cache_1m_8w.md) - Python model
 - [tlb_l2_512e_8w](tlb_l2_512e_8w.md)
 - [page_walker](page_walker.md)
+- [page_walker8](page_walker8.md) - Python model
 - [ex_stage](ex_stage.md)
 - [smt_arbitration](smt_arbitration.md)
 - [router_5port](router_5port.md)
 - [l3_slice_4m_8w](l3_slice_4m_8w.md)
+- [l3_cache_16m_8w](l3_cache_16m_8w.md)
+- [directory_mesi](directory_mesi.md)
+- [interconnect_mesh_2x2](interconnect_mesh_2x2.md) - Python model
+ - [dram_model](dram_model.md) - Python model
+- [instr_memory_model](instr_memory_model.md)
+- [data_memory_model](data_memory_model.md)
+- [reset_generator](reset_generator.md)
+- [dvfs_bfm](dvfs_bfm.md)
+- [coverage_model](coverage_model.md)
+- [regfile_bfm](regfile_bfm.md)
+ - [core_tile_2smts_8wide](core_tile_2smts_8wide.md) - Python model
+ - [riscv_soc_4core](riscv_soc_4core.md) - Python model
 - [interconnect_mesh_2x2](interconnect_mesh_2x2.md)
 - [dram_model](dram_model.md)
+- [instr_memory_model](instr_memory_model.md)
+- [data_memory_model](data_memory_model.md)
+- [reset_generator](reset_generator.md)
+- [regfile_bfm](regfile_bfm.md)
 - [core_tile_2smts_8wide](core_tile_2smts_8wide.md)
 - [riscv_soc_4core](riscv_soc_4core.md)
 - [vmcs](vmcs.md)
 - [ept](ept.md)
 - [nx_check](nx_check.md)
 - [scoreboard](scoreboard.md)
+- [sgx_enclave](sgx_enclave.md)
+- [sev_memory](sev_memory.md)
+- [spec_fetch_fence](spec_fetch_fence.md)
+- [smep_smap_check](smep_smap_check.md)

@@ -29,3 +29,5 @@ Multiplications take three cycles using a small pipeline. Divisions are
 iterative and finish after twenty cycles. When a result becomes available the
 unit raises `ready_o` along with the associated bookkeeping fields so that the
 ROB can mark the entry complete.
+
+A matching Python model (`MulDivUnit`) emulates the latency pipelines so tests can verify multiply and divide sequences.

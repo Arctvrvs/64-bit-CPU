@@ -5,3 +5,5 @@
 ## Description
 
 Each router links to its north, south, east and west neighbors with a simple credit based hand-shake. The current behavioral model just wires each router's outputs directly to the neighbor inputs without buffering.
+
+For unit tests a small Python helper `InterconnectMesh2x2` mirrors this behavior.

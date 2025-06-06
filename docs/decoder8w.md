@@ -6,6 +6,10 @@ This document describes the `decoder8w.sv` module which decodes up to eight inst
 
 `decoder8w` accepts eight instruction words accompanied by their program counters. For each instruction it outputs decoded register indices, immediate values and type information. This initial version supports a minimal subset of RV64I required for early testing.
 
+A small Python helper class `Decoder8W` mirrors the RTL decoder. It
+extracts the same register fields and immediates so unit tests can verify
+decode results without running a simulator.
+
 ## I/O Ports
 
 | Name | Dir | Width | Description |

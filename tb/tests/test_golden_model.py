@@ -85,6 +85,102 @@ def encode_amoswap(rd, rs1, rs2):
         | 0x2F
     )
 
+def encode_faddd(rd, rs1, rs2, rm=0):
+    return (
+        (0x01 << 25)
+        | (rs2 & 0x1F) << 20
+        | (rs1 & 0x1F) << 15
+        | (rm & 7) << 12
+        | (rd & 0x1F) << 7
+        | 0x53
+    )
+
+
+def encode_load(funct3, rd, rs1, imm):
+    imm &= 0xFFF
+    return (
+        (imm & 0xFFF) << 20
+        | (rs1 & 0x1F) << 15
+        | (funct3 & 7) << 12
+        | (rd & 0x1F) << 7
+        | 0x03
+    )
+
+
+def encode_store(funct3, rs1, rs2, imm):
+    imm &= 0xFFF
+    return (
+        ((imm >> 5) & 0x7F) << 25
+        | (rs2 & 0x1F) << 20
+        | (rs1 & 0x1F) << 15
+        | (funct3 & 7) << 12
+        | (imm & 0x1F) << 7
+        | 0x23
+    )
+
+def encode_csrrw(rd, rs1, csr):
+    return (
+        (csr & 0xFFF) << 20
+        | (rs1 & 0x1F) << 15
+        | (0x1 << 12)
+        | (rd & 0x1F) << 7
+        | 0x73
+    )
+
+
+def encode_csrrs(rd, rs1, csr):
+    return (
+        (csr & 0xFFF) << 20
+        | (rs1 & 0x1F) << 15
+        | (0x2 << 12)
+        | (rd & 0x1F) << 7
+        | 0x73
+    )
+
+
+def encode_csrrwi(rd, imm, csr):
+    return (
+        (csr & 0xFFF) << 20
+        | (imm & 0x1F) << 15
+        | (0x5 << 12)
+        | (rd & 0x1F) << 7
+        | 0x73
+    )
+
+
+def encode_vaddvv(vd, vs1, vs2):
+    return (
+        (0x00 << 26)
+        | (vs2 & 0x1F) << 20
+        | (vs1 & 0x1F) << 15
+        | (0x0 << 12)
+        | (vd & 0x1F) << 7
+        | 0x57
+    )
+
+
+def encode_vle64(vd, rs1, imm):
+    imm &= 0xFFF
+    return (
+        (imm & 0xFFF) << 20
+        | (rs1 & 0x1F) << 15
+        | (0x0 << 12)
+        | (vd & 0x1F) << 7
+        | 0x07
+    )
+
+
+def encode_vse64(vs3, rs1, imm):
+    imm &= 0xFFF
+    return (
+        ((imm >> 5) & 0x7F) << 25
+        | (vs3 & 0x1F) << 20
+        | (rs1 & 0x1F) << 15
+        | (0x0 << 12)
+        | (imm & 0x1F) << 7
+        | 0x27
+    )
+
 class GoldenModelTest(unittest.TestCase):
     def test_add_and_addi(self):
         gm = GoldenModel()
@@ -116,6 +212,15 @@ class GoldenModelTest(unittest.TestCase):
         self.assertEqual(gm.regs[3], 50)
         self.assertEqual(gm.regs[4], 5)
         self.assertEqual(gm.regs[5], 0)
+
+    def test_faddd(self):
+        gm = GoldenModel()
+        import struct
+        gm.fregs[1] = int.from_bytes(struct.pack('<d', 1.5), 'little')
+        gm.fregs[2] = int.from_bytes(struct.pack('<d', 2.25), 'little')
+        gm.step(encode_faddd(3, 1, 2))
+        res = struct.unpack('<d', gm.fregs[3].to_bytes(8, 'little'))[0]
+        self.assertAlmostEqual(res, 3.75)
 
     def test_logic_and_shifts(self):
         gm = GoldenModel()
@@ -177,6 +282,119 @@ class GoldenModelTest(unittest.TestCase):
         gm.step(encode_amoswap(6, 2, 3))  # amoswap.d x6,(x2),x3
         self.assertEqual(gm.regs[6], 16)
         self.assertEqual(gm.mem[0x100], 9)
+
+    def test_load_store_variants(self):
+        gm = GoldenModel()
+        for addr in [0x200, 0x202, 0x204, 0x208]:
+            gm.load_memory(addr, 0)
+
+        gm.regs[1] = 0x200
+        gm.regs[2] = 0xAA
+        gm.step(encode_store(0x0, 1, 2, 0))  # sb x2,0(x1)
+        gm.step(encode_load(0x0, 3, 1, 0))   # lb x3,0(x1)
+        self.assertEqual(gm.regs[3], 0xFFFFFFFFFFFFFFAA)
+        gm.step(encode_load(0x4, 4, 1, 0))   # lbu x4,0(x1)
+        self.assertEqual(gm.regs[4], 0xAA)
+        gm.regs[2] = 0xBEEF
+        gm.step(encode_store(0x1, 1, 2, 2))  # sh x2,2(x1)
+        gm.step(encode_load(0x1, 5, 1, 2))   # lh x5,2(x1)
+        self.assertEqual(gm.regs[5], 0xFFFFFFFFFFFFBEEF)
+        gm.step(encode_load(0x5, 6, 1, 2))   # lhu x6,2(x1)
+        self.assertEqual(gm.regs[6], 0xBEEF)
+        gm.regs[2] = 0x12345678
+        gm.step(encode_store(0x2, 1, 2, 4))  # sw x2,4(x1)
+        gm.step(encode_load(0x2, 7, 1, 4))   # lw x7,4(x1)
+        self.assertEqual(gm.regs[7], 0x12345678)
+        gm.step(encode_load(0x6, 8, 1, 4))   # lwu x8,4(x1)
+        self.assertEqual(gm.regs[8], 0x12345678)
+        gm.regs[2] = 0x1122334455667788
+        gm.step(encode_store(0x3, 1, 2, 8))  # sd x2,8(x1)
+        gm.step(encode_load(0x3, 9, 1, 8))   # ld x9,8(x1)
+        self.assertEqual(gm.regs[9], 0x1122334455667788)
+
+    def test_illegal_instruction_exception(self):
+        gm = GoldenModel()
+        gm.step(0xffffffff)  # illegal
+        self.assertEqual(gm.get_last_exception(), "illegal")
+
+    def test_misaligned_access_exception(self):
+        gm = GoldenModel()
+        gm.regs[1] = 0x100
+        gm.regs[2] = 0xBEEF
+        # misaligned halfword store at address 0x101
+        gm.step(encode_store(0x1, 1, 2, 1))
+        self.assertEqual(gm.get_last_exception(), "misalign")
+
+    def test_page_fault_exception(self):
+        gm = GoldenModel()
+        gm.regs[1] = 0x500
+        gm.step(encode_load(0x3, 2, 1, 0))
+        self.assertEqual(gm.get_last_exception(), "page")
+        gm.regs[2] = 0xAA
+        gm.step(encode_store(0x3, 1, 2, 0))
+        self.assertEqual(gm.get_last_exception(), "page")
+
+        # misaligned word load at address 0x102
+        gm.step(encode_load(0x2, 3, 1, 2))
+        self.assertEqual(gm.get_last_exception(), "misalign")
+
+    def test_slt_variants(self):
+        gm = GoldenModel()
+        # addi x1,x0,5
+        gm.step(0x00500093)
+        # addi x2,x0,10
+        gm.step(0x00a00113)
+        # slt x3,x1,x2 -> 1
+        slt_instr = (0x00 << 25) | (2 << 20) | (1 << 15) | (0x2 << 12) | (3 << 7) | 0x33
+        gm.step(slt_instr)
+        self.assertEqual(gm.regs[3], 1)
+        # sltu x4,x2,x1 -> 0
+        sltu_instr = (0x00 << 25) | (1 << 20) | (2 << 15) | (0x3 << 12) | (4 << 7) | 0x33
+        gm.step(sltu_instr)
+        self.assertEqual(gm.regs[4], 0)
+        # slti x5,x1,8 -> 1
+        slti_instr = (8 << 20) | (1 << 15) | (0x2 << 12) | (5 << 7) | 0x13
+        gm.step(slti_instr)
+        self.assertEqual(gm.regs[5], 1)
+        # sltiu x6,x2,5 -> 0
+        sltiu_instr = (5 << 20) | (2 << 15) | (0x3 << 12) | (6 << 7) | 0x13
+        gm.step(sltiu_instr)
+        self.assertEqual(gm.regs[6], 0)
+
+    def test_csr_instructions(self):
+        gm = GoldenModel()
+        gm.regs[2] = 0x5
+        gm.step(encode_csrrw(1, 2, 0x300))  # csrrw x1,csr300,x2
+        self.assertEqual(gm.regs[1], 0)
+        self.assertEqual(gm.csrs.get(0x300), 0x5)
+        gm.regs[3] = 0xA
+        gm.step(encode_csrrs(1, 3, 0x300))  # csrrs x1,csr300,x3
+        self.assertEqual(gm.regs[1], 0x5)
+        self.assertEqual(gm.csrs.get(0x300), 0xF)
+        gm.step(encode_csrrwi(4, 0x1, 0x300))  # csrrwi x4,1,csr300
+        self.assertEqual(gm.regs[4], 0xF)
+        self.assertEqual(gm.csrs.get(0x300), 0x1)
+
+    def test_vector_load_store(self):
+        gm = GoldenModel()
+        for i in range(8):
+            gm.load_memory(0x300 + i * 8, i + 1)
+        gm.regs[1] = 0x300
+        gm.step(encode_vle64(2, 1, 0))
+        for i in range(8):
+            self.assertEqual((gm.vregs[2] >> (64 * i)) & 0xFFFFFFFFFFFFFFFF, i + 1)
+        gm.step(encode_vse64(2, 1, 0x40))
+        for i in range(8):
+            self.assertEqual(gm.mem[0x340 + i * 8], i + 1)
+
+    def test_vaddvv(self):
+        gm = GoldenModel()
+        gm.vregs[1] = sum(((i + 1) << (64 * i)) for i in range(8))
+        gm.vregs[2] = sum(((10 * (i + 1)) << (64 * i)) for i in range(8))
+        gm.step(encode_vaddvv(3, 1, 2))
+        for i in range(8):
+            expect = (i + 1) + 10 * (i + 1)
+            self.assertEqual((gm.vregs[3] >> (64 * i)) & 0xFFFFFFFFFFFFFFFF, expect)
 
 if __name__ == '__main__':
     unittest.main()
