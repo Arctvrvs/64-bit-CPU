@@ -23,3 +23,5 @@ The walker searches its table for the requested virtual address. If found it
 returns the physical address and fault status according to the stored
 permission bits. This placeholder does not implement page table walks from
 memory.
+When instantiated from Python it may receive a ``CoverageModel``. Each lookup
+records whether a page walk was performed and if it faulted.

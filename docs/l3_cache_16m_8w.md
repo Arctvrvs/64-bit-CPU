@@ -25,4 +25,5 @@ asserted.
 
 A matching Python helper `L3Cache16M8W` located in
 `rtl/interconnect/l3_cache_16m_8w.py` mirrors this behavior for unit
-tests.
+tests. When a `CoverageModel` instance is supplied, cache hits and
+misses for the shared L3 are tracked automatically.

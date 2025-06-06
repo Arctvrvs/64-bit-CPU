@@ -1,11 +1,14 @@
 class L1ICache:
-    """Simple in-memory model of the L1 instruction cache with TLB lookup."""
-    def __init__(self, tlb_l1=None, tlb_l2=None, walker=None):
+    """Simple in-memory model of the L1 instruction cache with TLB lookup
+    and optional coverage."""
+
+    def __init__(self, tlb_l1=None, tlb_l2=None, walker=None, *, coverage=None):
         from rtl.mmu import TlbL1, TlbL2, PageWalker8
         self.mem = {}
-        self.tlb_l1 = tlb_l1 if tlb_l1 is not None else TlbL1()
-        self.tlb_l2 = tlb_l2 if tlb_l2 is not None else TlbL2()
+        self.tlb_l1 = tlb_l1 if tlb_l1 is not None else TlbL1(coverage=coverage)
+        self.tlb_l2 = tlb_l2 if tlb_l2 is not None else TlbL2(coverage=coverage)
         self.walker = walker if walker is not None else PageWalker8()
+        self.coverage = coverage
 
     def _translate(self, va):
         hit, pa, fault = self.tlb_l1.lookup(va, perm='x')
@@ -29,5 +32,10 @@ class L1ICache:
         """Translate *addr* and return the instruction word or 0."""
         pa, fault = self._translate(addr)
         if fault:
+            if self.coverage:
+                self.coverage.record_cache('L1', False)
             return 0
+        hit = (pa & ~0x3) in self.mem
+        if self.coverage:
+            self.coverage.record_cache('L1', hit)
         return self.mem.get(pa & ~0x3, 0)

@@ -11,7 +11,6 @@ the golden model and compares the destination register, any store or load data, 
 trace can be retrieved later.  The trace includes the retire **cycle** number
 starting from zero.  When ``rob_idx`` values are provided the scoreboard
 verifies that instructions retire sequentially.
-starting from zero.
 
 
 ## Usage
@@ -24,17 +23,21 @@ cov = CoverageModel()
 sb = Scoreboard(start_pc=0, coverage=cov)
 passed = sb.commit(instr, rd_arch=5, rd_val=42, next_pc=4)
 passed_exc = sb.commit(0xffffffff, exception="illegal")
+load_ok = sb.commit(
+    instr_load,
+    rd_arch=1,
+    rd_val=0x55,
+    is_load=True,
+    load_addr=0x100,
+    load_data=0x55,
+)
 pf = sb.commit(some_load, exception="page")
-sb = Scoreboard(start_pc=0)
-passed = sb.commit(instr, rd_arch=5, rd_val=42, next_pc=4)
-passed_exc = sb.commit(0xffffffff, exception="illegal")
-load_ok = sb.commit(instr_load, rd_arch=1, rd_val=0x55,
-                    is_load=True, load_addr=0x100, load_data=0x55)
 ```
 
 
 When a ``CoverageModel`` is supplied the scoreboard automatically records
-executed opcodes, branch outcomes and any exceptions into the coverage tracker.
+executed opcodes, immediate values, branch outcomes and any exceptions into the
+coverage tracker.
 
 
 The method returns `True` when the provided values match the reference
@@ -44,20 +47,12 @@ model, otherwise `False`.
 
 needed.  Provide an ``exception`` string (for example ``"illegal"``,
 ``"misalign"`` or ``"page"``) to verify that the golden model reports the same fault
-as the RTL.
-Specify ``is_load=True`` together with ``load_addr`` and ``load_data`` to
-verify the value returned by a load instruction against the model's
-memory. Set ``is_store=True`` and provide ``store_addr`` and
-``store_data`` to check that memory writes hit the expected location.
-Passing ``exception="page"`` allows tests to check page faults triggered
-by the golden model.
-
-needed.  Provide an ``exception`` string (for example ``"illegal"`` or
-``"misalign"``) to verify that the golden model reports the same fault
-as the RTL.
-Specify ``is_load=True`` together with ``load_addr`` and ``load_data`` to
-verify the value returned by a load instruction against the model's
-memory.
+as the RTL.  Specify ``is_load=True`` together with ``load_addr`` and
+``load_data`` to verify the value returned by a load instruction against the
+model's memory.  Set ``is_store=True`` and provide ``store_addr`` and
+``store_data`` to check that memory writes hit the expected location.  Passing
+``exception="page"`` allows tests to check page faults triggered by the golden
+model.
 
 
 Branches may also be checked by passing ``branch_taken`` and

@@ -16,5 +16,13 @@ class IBPPredictorTest(unittest.TestCase):
         # Different last target should not hit
         self.assertEqual(ibp.predict(pc, last + 4), 0)
 
+    def test_coverage(self):
+        from tb.uvm_components.coverage import CoverageModel
+        cov = CoverageModel()
+        ibp = IBPPredictor(entries=4, coverage=cov)
+        ibp.update(0x40, 0x10, 0x44)
+        summary = cov.summary()
+        self.assertEqual(summary["ibp_entries"], 1)
+
 if __name__ == '__main__':
     unittest.main()

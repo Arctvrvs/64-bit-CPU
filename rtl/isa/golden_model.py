@@ -1,7 +1,10 @@
+from rtl.decode.decoder8w import Decoder8W
+
+
 class GoldenModel:
     """Minimal RISC-V golden reference supporting a small subset of RV64I."""
 
-    def __init__(self, pc=0):
+    def __init__(self, pc=0, *, coverage=None):
         self.regs = [0] * 32
         self.fregs = [0] * 32  # store double precision bits
         self.vregs = [0] * 32  # 512-bit vector registers
@@ -12,10 +15,21 @@ class GoldenModel:
         self.last_exception = None
         self.MASK64 = 0xFFFFFFFFFFFFFFFF
         self.MASK512 = (1 << 512) - 1
+        self.coverage = coverage
+        self.page_table = {}
 
-    def load_memory(self, addr, data):
-        """Load 64-bit word at addr."""
+    def load_memory(self, addr, data, *, map_va=None, perm="rw"):
+        """Load 64-bit word at *addr*.
+
+        ``map_va`` optionally creates a virtual to physical translation
+        for the given address using ``perm`` permissions. If no mapping
+        exists, an identity mapping is created so existing tests that
+        use physical addresses directly continue to work.
+        """
         self.mem[addr] = data & 0xFFFFFFFFFFFFFFFF
+        va = map_va if map_va is not None else addr
+        if va not in self.page_table:
+            self.page_table[va] = (addr, perm)
 
     def fetch(self, addr):
         return self.mem.get(addr, 0)
@@ -42,6 +56,26 @@ class GoldenModel:
     def _double_to_bits(fval):
         import struct
         return int.from_bytes(struct.pack('<d', fval), 'little') & 0xFFFFFFFFFFFFFFFF
+
+    def map_page(self, va, pa, perm="rw"):
+        """Map *va* to *pa* with the given permissions."""
+        self.page_table[va] = (pa, perm)
+
+    def translate(self, va, perm):
+        """Translate a virtual address returning ``(pa, fault)``.
+
+        Records page walk coverage if available.
+        """
+        if va not in self.page_table:
+            # allow direct physical addressing for legacy tests
+            pa = va
+            fault = va not in self.mem
+        else:
+            pa, permissions = self.page_table[va]
+            fault = perm not in permissions
+        if self.coverage:
+            self.coverage.record_page_walk(fault)
+        return pa, fault
 
     def step(self, instr):
         self.last_exception = None
@@ -164,7 +198,8 @@ class GoldenModel:
                 self.last_exception = "illegal"
         elif opcode == 0x03:  # Loads
             imm = self._sign_extend(instr >> 20, 12)
-            addr = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
+            va = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
+            pa, fault = self.translate(va, 'r')
             misalign = False
             case_align = {
                 0x1: 2,
@@ -174,37 +209,38 @@ class GoldenModel:
                 0x6: 4,
             }
             align = case_align.get(funct3, 1)
-            if addr % align != 0:
+            if va % align != 0:
                 misalign = align > 1
             if misalign:
                 self.last_exception = "misalign"
 
-            elif addr not in self.mem:
+            elif fault or pa not in self.mem:
                 self.last_exception = "page"
 
             elif funct3 == 0x0:  # LB
-                data = self.mem.get(addr, 0) & 0xFF
+                data = self.mem.get(pa, 0) & 0xFF
                 self.regs[rd] = self._sign_extend(data, 8) & 0xFFFFFFFFFFFFFFFF
             elif funct3 == 0x1:  # LH
-                data = self.mem.get(addr, 0) & 0xFFFF
+                data = self.mem.get(pa, 0) & 0xFFFF
                 self.regs[rd] = self._sign_extend(data, 16) & 0xFFFFFFFFFFFFFFFF
             elif funct3 == 0x2:  # LW
-                data = self.mem.get(addr, 0) & 0xFFFFFFFF
+                data = self.mem.get(pa, 0) & 0xFFFFFFFF
                 self.regs[rd] = self._sign_extend(data, 32) & 0xFFFFFFFFFFFFFFFF
             elif funct3 == 0x3:  # LD
-                self.regs[rd] = self.mem.get(addr, 0) & 0xFFFFFFFFFFFFFFFF
+                self.regs[rd] = self.mem.get(pa, 0) & 0xFFFFFFFFFFFFFFFF
             elif funct3 == 0x4:  # LBU
-                self.regs[rd] = self.mem.get(addr, 0) & 0xFF
+                self.regs[rd] = self.mem.get(pa, 0) & 0xFF
             elif funct3 == 0x5:  # LHU
-                self.regs[rd] = self.mem.get(addr, 0) & 0xFFFF
+                self.regs[rd] = self.mem.get(pa, 0) & 0xFFFF
             elif funct3 == 0x6:  # LWU
-                self.regs[rd] = self.mem.get(addr, 0) & 0xFFFFFFFF
+                self.regs[rd] = self.mem.get(pa, 0) & 0xFFFFFFFF
             else:
                 self.last_exception = "illegal"
         elif opcode == 0x23:  # Stores
             imm = ((instr >> 7) & 0x1F) | (((instr >> 25) & 0x7F) << 5)
             imm = self._sign_extend(imm, 12)
-            addr = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
+            va = (self.regs[rs1] + imm) & 0xFFFFFFFFFFFFFFFF
+            pa, fault = self.translate(va, 'w')
             misalign = False
             case_align = {
                 0x1: 2,
@@ -212,20 +248,20 @@ class GoldenModel:
                 0x3: 8,
             }
             align = case_align.get(funct3, 1)
-            if addr % align != 0:
+            if va % align != 0:
                 misalign = align > 1
             if misalign:
                 self.last_exception = "misalign"
-            elif addr not in self.mem:
+            elif fault:
                 self.last_exception = "page"
             elif funct3 == 0x0:  # SB
-                self.mem[addr] = self.regs[rs2] & 0xFF
+                self.mem[pa] = self.regs[rs2] & 0xFF
             elif funct3 == 0x1:  # SH
-                self.mem[addr] = self.regs[rs2] & 0xFFFF
+                self.mem[pa] = self.regs[rs2] & 0xFFFF
             elif funct3 == 0x2:  # SW
-                self.mem[addr] = self.regs[rs2] & 0xFFFFFFFF
+                self.mem[pa] = self.regs[rs2] & 0xFFFFFFFF
             elif funct3 == 0x3:  # SD
-                self.mem[addr] = self.regs[rs2] & 0xFFFFFFFFFFFFFFFF
+                self.mem[pa] = self.regs[rs2] & 0xFFFFFFFFFFFFFFFF
             else:
                 self.last_exception = "illegal"
         elif opcode == 0x63:  # Branches
@@ -364,3 +400,16 @@ class GoldenModel:
         for instr in instructions:
             self.step(instr)
         return self.pc
+
+    def issue_bundle(self, pc, instructions, *, coverage=None):
+        """Decode and execute up to eight instructions starting at *pc*.
+
+        Returns a tuple ``(uops, next_pc)`` where ``uops`` is the list of
+        decoded micro-operations produced by :class:`Decoder8W` and ``next_pc``
+        is the PC after executing the bundle.
+        """
+        self.pc = pc
+        decoder = Decoder8W()
+        uops = decoder.decode(instructions, coverage=coverage)
+        next_pc = self.execute_bundle(instructions)
+        return uops, next_pc

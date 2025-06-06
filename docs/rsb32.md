@@ -21,3 +21,8 @@ On a push the address is written to the current stack pointer and the
 pointer increments modulo the depth. A pop decrements the pointer and
 outputs the address from the new top entry. Wrap-around effectively
 creates a circular buffer suitable for storing nested return addresses.
+
+When the Python ``ReturnStackBuffer`` model is given a ``CoverageModel``
+instance it automatically records overflow when pushing to a full stack
+and underflow when popping an empty stack. These counters appear in
+coverage summaries as ``rsb_overflow`` and ``rsb_underflow``.

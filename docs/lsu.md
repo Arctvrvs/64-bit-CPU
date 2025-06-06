@@ -42,3 +42,6 @@ interaction expected in the RTL.
 
 A lightweight Python `LSU` model mirrors this behavior for unit tests. It
 uses the `DataMemoryModel` helper to service load and store operations.
+When provided a `CoverageModel` instance the LSU records TLB hit/miss
+statistics, lookup latency and permission faults. Page walks issued to its
+`PageWalker8` helper are logged as well along with any resulting faults.

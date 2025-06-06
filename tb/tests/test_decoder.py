@@ -4,6 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from rtl.decode.decoder8w import Decoder8W
+from tb.uvm_components.coverage import CoverageModel
 
 class Decoder8WTest(unittest.TestCase):
     def test_simple_decode(self):
@@ -22,6 +23,15 @@ class Decoder8WTest(unittest.TestCase):
         self.assertEqual(res[1]['imm'], 1)
         self.assertTrue(res[2]['is_store'])
         self.assertTrue(res[3]['is_branch'])
+
+    def test_coverage_hook(self):
+        cov = CoverageModel()
+        dec = Decoder8W()
+        instrs = [0x00128293, 0x00b50663]
+        dec.decode(instrs, coverage=cov)
+        summary = cov.summary()
+        self.assertEqual(summary['opcodes'], 2)
+        self.assertEqual(summary['immediates'], 2)
 
 if __name__ == '__main__':
     unittest.main()

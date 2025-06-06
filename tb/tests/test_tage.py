@@ -17,5 +17,13 @@ class TAGEPredictorTest(unittest.TestCase):
             tage.update(pc, False)
         self.assertFalse(tage.predict(pc))
 
+    def test_coverage(self):
+        from tb.uvm_components.coverage import CoverageModel
+        cov = CoverageModel()
+        tage = TAGEPredictor(tables=2, entries=8, coverage=cov)
+        tage.update(0x80, True)
+        summary = cov.summary()
+        self.assertEqual(summary["tage_entries"].get(0, 0), 1)
+
 if __name__ == '__main__':
     unittest.main()

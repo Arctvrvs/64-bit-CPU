@@ -8,7 +8,9 @@ This document describes the `decoder8w.sv` module which decodes up to eight inst
 
 A small Python helper class `Decoder8W` mirrors the RTL decoder. It
 extracts the same register fields and immediates so unit tests can verify
-decode results without running a simulator.
+decode results without running a simulator. When provided with a
+`CoverageModel` instance its `decode` method records executed opcodes and
+immediate values automatically.
 
 ## I/O Ports
 

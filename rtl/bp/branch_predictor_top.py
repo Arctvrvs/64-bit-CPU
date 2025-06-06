@@ -1,15 +1,16 @@
 class BranchPredictorTop:
     """Simplified top level branch predictor used in unit tests."""
 
-    def __init__(self, entries=32):
+    def __init__(self, entries=32, *, coverage=None):
         from .btb import BTB
         from .tage import TAGEPredictor
         from .ibp import IBPPredictor
         from .rsb32 import ReturnStackBuffer
-        self.btb = BTB(entries=entries)
-        self.tage = TAGEPredictor()
-        self.ibp = IBPPredictor()
-        self.rsb = ReturnStackBuffer()
+        self.coverage = coverage
+        self.btb = BTB(entries=entries, coverage=coverage)
+        self.tage = TAGEPredictor(coverage=coverage)
+        self.ibp = IBPPredictor(coverage=coverage)
+        self.rsb = ReturnStackBuffer(coverage=coverage)
         self.last_target = 0
 
     def predict(self, pc, is_call=False, is_ret=False,

@@ -126,6 +126,30 @@ class Scoreboard:
         opcode = instr & 0x7F
         if self.coverage:
             self.coverage.record_opcode(opcode)
+            # decode immediate for coverage purposes (I/S/B/J types only)
+            imm = 0
+            if opcode in (0x13, 0x03, 0x67):
+                imm = ((instr >> 20) & 0xFFF)
+                sign = 1 << 11
+                imm = (imm & (sign - 1)) - (imm & sign)
+            elif opcode == 0x23:
+                imm = ((instr >> 7) & 0x1F) | (((instr >> 25) & 0x7F) << 5)
+                sign = 1 << 11
+                imm = (imm & (sign - 1)) - (imm & sign)
+            elif opcode == 0x63:
+                imm = ((instr >> 7) & 0x1E) | ((instr >> 20) & 0x7E0)
+                imm |= ((instr >> 7) & 0x1) << 11
+                imm |= (instr >> 31) << 12
+                sign = 1 << 12
+                imm = (imm & (sign - 1)) - (imm & sign)
+            elif opcode == 0x6F:
+                imm = ((instr >> 21) & 0x3FF) | ((instr >> 20) & 0x1) << 10
+                imm |= ((instr >> 12) & 0xFF) << 11
+                imm |= (instr >> 31) << 19
+                imm = ((imm << 1) & 0x1FFFFF)
+                sign = 1 << 20
+                imm = (imm & (sign - 1)) - (imm & sign)
+            self.coverage.record_immediate(imm)
         self.gm.step(instr)
         gm_exc = self.gm.get_last_exception()
         if self.coverage and gm_exc is not None:

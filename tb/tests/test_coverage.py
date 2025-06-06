@@ -18,6 +18,12 @@ class CoverageModelTest(unittest.TestCase):
         cov.record_cache('L1', False)
         cov.record_tlb('L1', True)
         cov.record_tlb('L2', False)
+        cov.record_tlb_fault('L1')
+        cov.record_tlb_fault('L2')
+        cov.record_tlb_latency('L1', 2)
+        cov.record_tlb_latency('L2', 5)
+        cov.record_immediate(0x10)
+        cov.record_immediate(0x20)
         summary = cov.summary()
         self.assertEqual(summary['opcodes'], 2)
         self.assertEqual(summary['btb_entries'], 1)
@@ -25,12 +31,21 @@ class CoverageModelTest(unittest.TestCase):
         self.assertEqual(summary['cache_misses']['L1'], 1)
         self.assertEqual(summary['tlb_hits']['L1'], 1)
         self.assertEqual(summary['tlb_misses']['L2'], 1)
+        self.assertEqual(summary['tlb_faults']['L1'], 1)
+        self.assertEqual(summary['tlb_faults']['L2'], 1)
+        self.assertEqual(summary['tlb_latency']['L1'], [2])
+        self.assertEqual(summary['tlb_latency']['L2'], [5])
+        self.assertEqual(summary['immediates'], 2)
 
     def test_reset(self):
         cov = CoverageModel()
         cov.record_opcode(0x33)
+        cov.record_tlb_latency('L1', 4)
+        cov.record_immediate(0x5)
         cov.reset()
         self.assertEqual(cov.summary()['opcodes'], 0)
+        self.assertEqual(cov.summary()['tlb_latency']['L1'], [])
+        self.assertEqual(cov.summary()['immediates'], 0)
 
     def test_exceptions(self):
         cov = CoverageModel()
@@ -49,6 +64,15 @@ class CoverageModelTest(unittest.TestCase):
         summary = cov.summary()
         self.assertEqual(summary['branches'], 3)
         self.assertEqual(summary['mispredicts'], 2)
+
+    def test_page_walks(self):
+        cov = CoverageModel()
+        cov.record_page_walk(False)
+        cov.record_page_walk(True)
+        cov.record_page_walk(True)
+        summary = cov.summary()
+        self.assertEqual(summary['page_walks'], 3)
+        self.assertEqual(summary['page_walk_faults'], 2)
 
 
 if __name__ == '__main__':

@@ -4,6 +4,8 @@
 8 concurrent translation requests. Each request specifies the virtual address and
 required permissions. The module contains a small associative array of 16
 entries and produces a physical address with a fault flag in a single cycle.
+When the Python ``PageWalker8`` model is given a ``CoverageModel`` instance it
+records each walk and whether a permission fault occurred.
 
 ## Ports
 
