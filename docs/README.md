@@ -41,3 +41,4 @@ Module documentation:
 - [vmcs](vmcs.md)
 - [ept](ept.md)
 - [nx_check](nx_check.md)
+- [scoreboard](scoreboard.md)
