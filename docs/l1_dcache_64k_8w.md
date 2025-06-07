@@ -1,9 +1,12 @@
 # l1_dcache_64k_8w Module
 
 `l1_dcache_64k_8w.sv` implements a placeholder 64&nbsp;KB 8-way set associative
-data cache. The current model simply stores 64&nbsp;KB of memory and completes
-all read and write operations in a single cycle. Tag checking and miss handling
-are left for future refinement.
+data cache. Each request address is first translated through a small two-level
+TLB hierarchy consisting of `tlb_l1_64e_8w`, `tlb_l2_512e_8w` and a
+`page_walker8` model. The resulting physical address indexes the internal
+memory array. Permission faults or translation misses deassert the ready signal
+so the LSU stalls until translation completes. Tag checking and miss handling
+of the cache itself are left for future refinement.
 
 ## Parameters
 

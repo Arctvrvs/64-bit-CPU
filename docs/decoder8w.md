@@ -4,7 +4,7 @@ This document describes the `decoder8w.sv` module which decodes up to eight inst
 
 ## Function
 
-`decoder8w` accepts eight instruction words accompanied by their program counters. For each instruction it outputs decoded register indices, immediate values and type information. This initial version supports a minimal subset of RV64I required for early testing.
+`decoder8w` accepts eight instruction words accompanied by their program counters. For each instruction it outputs decoded register indices, immediate values and type information. The decoder now handles basic loads, stores, jumps and branches by generating I‑, S‑, B‑ and J‑type immediates. It remains a simplified model but is sufficient for unit tests that exercise memory operations and control flow.
 
 A small Python helper class `Decoder8W` mirrors the RTL decoder. It
 extracts the same register fields and immediates so unit tests can verify
@@ -28,6 +28,8 @@ immediate values automatically.
 | `func3_o[7:0][2:0]` | out | 3 each | Function 3 field |
 | `func7_o[7:0][6:0]` | out | 7 each | Function 7 field |
 | `is_branch_o[7:0]` | out | 1 each | Branch instruction flag |
+| `is_load_o[7:0]` | out | 1 each | Load instruction flag |
+| `is_store_o[7:0]` | out | 1 each | Store instruction flag |
 | `exception_o[7:0][2:0]` | out | 3 each | Decode exception bits |
 
 The micro-op structure will be refined as additional instructions are supported.

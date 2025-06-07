@@ -38,5 +38,7 @@ eight decoded instructions each cycle. It maps architectural register indices to
 | `rollback_i` | in | 1 | Restore most recent snapshot |
 
 `rename_unit_8wide` now includes a tiny checkpoint stack to support branch
-rollback.
+rollback.  Writes to architectural register `x0` do not allocate a new
+physical register; the mapping remains fixed to physical register 0 so the
+free list count is unchanged when `rd_arch_i[j]` is zero.
 

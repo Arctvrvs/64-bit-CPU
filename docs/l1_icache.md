@@ -37,9 +37,10 @@ to support 8-byte aligned instruction fetching.
 The cache performs two tag and data lookups per cycle. On a miss the line is
 allocated in an MSHR entry (up to eight entries). Replacement uses a 7-bit
 pseudo-LRU per set. Before each lookup the virtual address is translated through
-the instruction TLB hierarchy (`tlb_l1` → `tlb_l2` → `page_walker`).  Any
-translation fault prevents the fetch from completing. This module is a
-placeholder and does not implement the full cache logic yet.
+the instruction TLB hierarchy (`tlb_l1` → `tlb_l2` → `page_walker`).  Translation
+misses or permission faults deassert the ready signal so the fetch stage stalls
+until the page walker supplies a physical address. This module remains a
+behavioral placeholder and does not implement full cache lookup logic yet.
 
 A small Python helper `L1ICache` in `rtl/cache/l1_icache.py`
 provides an in-memory model used by the unit tests. When supplied with a

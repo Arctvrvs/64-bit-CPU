@@ -2,8 +2,10 @@
 //
 // Purpose: Map architectural registers to physical registers using
 // a free-list and rename table. Allocates up to eight instructions
-// per cycle. This is a simplified placeholder implementation without
-// branch checkpointing or mispredict recovery.
+// per cycle. Supports branch checkpointing via a small stack so that
+// mispredicted branches can roll back the mapping state. Architectural
+// register x0 always maps to physical register 0 and never consumes a
+// free register.
 
 module rename_unit_8wide (
     input  logic        clk,
@@ -78,15 +80,19 @@ module rename_unit_8wide (
                         cp_sp <= cp_sp + 1;
                     end
                     for (int k = 0; k < 8; k++) begin
+                        old_rd_phys_o[k] <= arch_to_phys[rd_arch_i[k]];
                         if (valid_in[k]) begin
-                            old_rd_phys_o[k] <= arch_to_phys[rd_arch_i[k]];
-                            rd_phys_o[k]     <= free_list[free_head];
-                            arch_to_phys[rd_arch_i[k]] <= free_list[free_head];
-                            free_head <= free_head + 1;
-                            free_count <= free_count - 1;
+                            if (rd_arch_i[k] != 5'd0) begin
+                                rd_phys_o[k]     <= free_list[free_head];
+                                arch_to_phys[rd_arch_i[k]] <= free_list[free_head];
+                                free_head <= free_head + 1;
+                                free_count <= free_count - 1;
+                            end else begin
+                                rd_phys_o[k] <= 7'd0;
+                                arch_to_phys[0] <= 7'd0;
+                            end
                             rename_valid_o[k] <= 1'b1;
                         end else begin
-                            old_rd_phys_o[k] <= arch_to_phys[rd_arch_i[k]];
                             rd_phys_o[k]     <= arch_to_phys[rd_arch_i[k]];
                             rename_valid_o[k] <= 1'b0;
                         end

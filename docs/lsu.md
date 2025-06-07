@@ -31,11 +31,12 @@ forwards them to the L1 data cache.
 
 ## Behavior
 
-For each valid operation the LSU translates the virtual address through a
-two-level TLB hierarchy. If the address is not present in the L1 TLB it falls
-back to the L2 TLB and finally the page walker. Translation faults are reported
-to the caller. After a successful translation the unit issues a request to the
-data cache. Loads return their data one cycle later assuming the cache responds
+For each valid operation the LSU now translates the virtual address through a
+two-level TLB hierarchy implemented by `tlb_l1_64e_8w` and `tlb_l2_512e_8w`.
+If neither TLB contains the mapping a request is sent to `page_walker8` and the
+µop stalls until the walk completes. Translation faults are reported to the
+caller. After a successful translation the unit issues a request to the data
+cache. Loads return their data one cycle later assuming the cache responds
 ready. Stores simply forward their data and do not produce a result. This
 behavioral model still omits ordering rules but now mirrors the basic MMU
 interaction expected in the RTL.

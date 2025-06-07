@@ -15,11 +15,14 @@ for use in unit tests.
 | `src1_i` | in | 512 | First operand |
 | `src2_i` | in | 512 | Second operand |
 | `src3_i` | in | 512 | Addend |
+| `mask_i` | in | 64 | Per-lane enable mask |
 | `valid_o` | out | 1 | Result valid |
 | `result_o` | out | 512 | FMA result |
 
 ## Behavior
 
 When `valid_i` is asserted the module multiplies `src1_i` and `src2_i`, adds
-`src3_i` and outputs the result five cycles later. This model treats the entire
-512‑bit vector as a large integer for simplicity.
+`src3_i` and outputs the result five cycles later. Each of the eight
+64‑bit lanes is updated only when the corresponding bit of `mask_i` is set;
+otherwise the lane retains the value from `src3_i`.  This model treats the
+entire 512‑bit vector as a large integer for simplicity.
