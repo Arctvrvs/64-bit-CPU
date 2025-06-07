@@ -21,5 +21,15 @@ class ROBTest(unittest.TestCase):
         self.assertEqual(entry2['dest'], 6)
         self.assertIsNone(rob.commit())
 
+    def test_branch_mispredict(self):
+        rob = ROB(entries=4)
+        idxs = rob.alloc([
+            {'dest': 0, 'old': 0, 'is_branch': True},
+        ])
+        rob.writeback(idxs[0], mispredict=True, target=0x80)
+        entry = rob.commit()
+        self.assertTrue(entry['mispredict'])
+        self.assertEqual(entry['target'], 0x80)
+
 if __name__ == '__main__':
     unittest.main()

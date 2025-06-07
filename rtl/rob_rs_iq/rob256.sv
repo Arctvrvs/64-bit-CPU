@@ -20,6 +20,8 @@ module rob256 (
     // Writeback results
     input  logic [7:0]  wb_valid_i,
     input  logic [7:0]  wb_idx_i      [7:0],
+    input  logic [7:0]  wb_branch_misp_i,
+    input  logic [63:0] wb_branch_target_i [7:0],
 
     // Commit interface
     input  logic        commit_ready_i,
@@ -28,7 +30,8 @@ module rob256 (
     output logic [6:0]  commit_rd_phys_o,
     output logic [6:0]  commit_old_phys_o,
     output logic        commit_is_store_o,
-    output logic        commit_branch_misp_o
+    output logic        commit_branch_misp_o,
+    output logic [63:0] commit_branch_target_o
 );
 
     localparam int ROB_ENTRIES = 256;
@@ -39,6 +42,8 @@ module rob256 (
         logic [6:0]  old_dest_phys;
         logic        is_store;
         logic        is_branch;
+        logic        br_misp;
+        logic [63:0] br_tgt;
     } rob_entry_t;
 
     rob_entry_t rob[ROB_ENTRIES-1:0];
@@ -60,6 +65,8 @@ module rob256 (
                 rob[i].old_dest_phys <= '0;
                 rob[i].is_store <= 1'b0;
                 rob[i].is_branch <= 1'b0;
+                rob[i].br_misp <= 1'b0;
+                rob[i].br_tgt <= '0;
             end
         end else begin
             if (alloc_ready_o) begin
@@ -84,6 +91,8 @@ module rob256 (
             for (int k = 0; k < 8; k++) begin
                 if (wb_valid_i[k]) begin
                     rob[wb_idx_i[k]].ready <= 1'b1;
+                    rob[wb_idx_i[k]].br_misp <= wb_branch_misp_i[k];
+                    rob[wb_idx_i[k]].br_tgt <= wb_branch_target_i[k];
                 end
             end
 
@@ -94,8 +103,11 @@ module rob256 (
                 commit_rd_phys_o    <= rob[head_ptr].dest_phys;
                 commit_old_phys_o   <= rob[head_ptr].old_dest_phys;
                 commit_is_store_o   <= rob[head_ptr].is_store;
-                commit_branch_misp_o<= 1'b0;
+                commit_branch_misp_o<= rob[head_ptr].br_misp;
+                commit_branch_target_o <= rob[head_ptr].br_tgt;
                 rob[head_ptr].valid <= 1'b0;
+                rob[head_ptr].br_misp <= 1'b0;
+                rob[head_ptr].br_tgt <= '0;
                 head_ptr <= head_ptr + 1;
                 count    <= count - 1;
             end else begin

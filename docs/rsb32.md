@@ -14,6 +14,8 @@ up to 32 return addresses and provides push and pop operations.
 | `push_addr_i` | in | 64 | Address to push |
 | `pop_i` | in | 1 | Pop the top entry |
 | `top_o` | out | 64 | Address from top of stack |
+| `overflow_o` | out | 1 | High for one cycle when push overflows |
+| `underflow_o` | out | 1 | High for one cycle when pop underflows |
 
 ## Behavior
 
@@ -25,4 +27,6 @@ creates a circular buffer suitable for storing nested return addresses.
 When the Python ``ReturnStackBuffer`` model is given a ``CoverageModel``
 instance it automatically records overflow when pushing to a full stack
 and underflow when popping an empty stack. These counters appear in
-coverage summaries as ``rsb_overflow`` and ``rsb_underflow``.
+coverage summaries as ``rsb_overflow`` and ``rsb_underflow``. The SystemVerilog
+module also surfaces ``overflow_o`` and ``underflow_o`` pulses that may be
+monitored by the testbench.

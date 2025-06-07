@@ -10,6 +10,7 @@ module vector_fma512 (
     input  logic [511:0] src1_i,
     input  logic [511:0] src2_i,
     input  logic [511:0] src3_i,
+    input  logic [63:0]  mask_i,
     output logic        valid_o,
     output logic [511:0] result_o
 );
@@ -23,7 +24,16 @@ module vector_fma512 (
             val_pipe <= '0;
         end else begin
             val_pipe[0] <= valid_i;
-            res_pipe[0] <= (src1_i * src2_i) + src3_i; // behavioral
+            for (int lane = 0; lane < 8; lane++) begin
+                logic [63:0] a = src1_i[lane*64 +: 64];
+                logic [63:0] b = src2_i[lane*64 +: 64];
+                logic [63:0] c = src3_i[lane*64 +: 64];
+                logic [63:0] prod = a * b + c;
+                if (mask_i[lane])
+                    res_pipe[0][lane*64 +: 64] <= prod;
+                else
+                    res_pipe[0][lane*64 +: 64] <= c;
+            end
             for (int i = 1; i < STAGES; i++) begin
                 val_pipe[i] <= val_pipe[i-1];
                 res_pipe[i] <= res_pipe[i-1];

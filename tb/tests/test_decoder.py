@@ -14,6 +14,7 @@ class Decoder8WTest(unittest.TestCase):
             0x00128293,  # addi x5,x5,1
             0x00b52023,  # sw x11,0(x10)
             0x00b50663,  # beq x10,x11,12
+            0x00003103,  # ld x2,0(x0)
         ]
         res = dec.decode(instrs)
         self.assertEqual(res[0]['rd'], 10)
@@ -23,6 +24,8 @@ class Decoder8WTest(unittest.TestCase):
         self.assertEqual(res[1]['imm'], 1)
         self.assertTrue(res[2]['is_store'])
         self.assertTrue(res[3]['is_branch'])
+        self.assertEqual(res[3]['imm'], 12)
+        self.assertTrue(res[4]['is_load'])
 
     def test_coverage_hook(self):
         cov = CoverageModel()

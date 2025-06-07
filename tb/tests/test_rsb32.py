@@ -32,6 +32,11 @@ class RSBTest(unittest.TestCase):
         rsb.pop()
         rsb.pop()
         rsb.pop()  # underflow
+        self.assertTrue(rsb.overflow_flag)
+        self.assertTrue(rsb.underflow_flag)
+        rsb.clear_flags()
+        self.assertFalse(rsb.overflow_flag)
+        self.assertFalse(rsb.underflow_flag)
         summary = cov.summary()
         self.assertEqual(summary["rsb_overflow"], 1)
         self.assertEqual(summary["rsb_underflow"], 1)

@@ -37,5 +37,15 @@ class RenameUnitTest(unittest.TestCase):
         self.assertEqual(ru.mapping, before_map)
         self.assertGreater(ru.free_count(), used_after)
 
+    def test_zero_reg_not_allocated(self):
+        ru = RenameUnit()
+        free_before = ru.free_count()
+        res = ru.allocate([
+            {"valid": True, "rs1": 0, "rs2": 0, "rd": 0},
+        ])
+        self.assertTrue(res[0]["valid"])
+        self.assertEqual(res[0]["rd_phys"], 0)
+        self.assertEqual(ru.free_count(), free_before)
+
 if __name__ == '__main__':
     unittest.main()
