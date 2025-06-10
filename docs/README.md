@@ -44,22 +44,25 @@ Module documentation:
 - [reset_generator](reset_generator.md)
 - [dvfs_bfm](dvfs_bfm.md)
 - [coverage_model](coverage_model.md)
+- [trace_utils](trace_utils.md)
 - [regfile_bfm](regfile_bfm.md)
- - [core_tile_2smts_8wide](core_tile_2smts_8wide.md) - Python model
- - [riscv_soc_4core](riscv_soc_4core.md) - Python model
-- [interconnect_mesh_2x2](interconnect_mesh_2x2.md)
-- [dram_model](dram_model.md)
-- [instr_memory_model](instr_memory_model.md)
-- [data_memory_model](data_memory_model.md)
-- [reset_generator](reset_generator.md)
-- [regfile_bfm](regfile_bfm.md)
-- [core_tile_2smts_8wide](core_tile_2smts_8wide.md)
-- [riscv_soc_4core](riscv_soc_4core.md)
+- [core_tile_2smts_8wide](core_tile_2smts_8wide.md) - Python model
+- [riscv_soc_4core](riscv_soc_4core.md) - Python model
+- [top](top.md)
 - [vmcs](vmcs.md)
 - [ept](ept.md)
 - [nx_check](nx_check.md)
 - [scoreboard](scoreboard.md)
+- [reference_trace](reference_trace.md)
+- [verification_plan](verification_plan.md)
 - [sgx_enclave](sgx_enclave.md)
 - [sev_memory](sev_memory.md)
 - [spec_fetch_fence](spec_fetch_fence.md)
 - [smep_smap_check](smep_smap_check.md)
+
+## Running Tests
+
+Execute `make test` from the project root to run the Python unit test
+suite.  The command invokes `scripts/run_tests.sh` which uses `pytest`.
+If the optional `pytest-cov` plug‑in is available a simple coverage
+summary is printed on the console.

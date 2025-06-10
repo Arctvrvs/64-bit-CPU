@@ -4,6 +4,10 @@
 // small fully associative table. This simplified model assumes
 // single-cycle lookup and direct refill interface.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
 (* clock_gating_cell = "yes" *)
 module tlb_l1_64e_8w #(
     parameter int ENTRIES = 64

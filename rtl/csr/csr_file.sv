@@ -2,6 +2,11 @@
 //
 // Purpose: Provide a small CSR storage with cycle and instret counters.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module csr_file (
     input  logic        clk,
     input  logic        rst_n,

@@ -4,6 +4,11 @@
 // operations in program order. This is a behavioral placeholder model
 // with a fixed depth of 128 entries.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module issue_queue_8wide (
     input  logic        clk,
     input  logic        rst_n,

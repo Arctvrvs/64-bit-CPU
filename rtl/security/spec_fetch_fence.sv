@@ -4,6 +4,11 @@
 // placeholder keeps a count of pending fences and deasserts
 // allow_load_o when any are outstanding.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module spec_fetch_fence(
     input  logic clk,
     input  logic rst_n,

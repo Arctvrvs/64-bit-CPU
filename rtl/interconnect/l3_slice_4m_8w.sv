@@ -2,6 +2,11 @@
 //
 // Holds a small associative array to service requests from L2 caches.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module l3_slice_4m_8w (
     input  logic        clk,
     input  logic        rst_n,

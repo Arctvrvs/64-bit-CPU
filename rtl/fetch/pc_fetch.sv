@@ -5,6 +5,11 @@
 // produced to drive the L1 instruction cache. Handles branch redirection
 // and reset behavior.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module pc_fetch (
     input  logic        clk,
     input  logic        rst_n,

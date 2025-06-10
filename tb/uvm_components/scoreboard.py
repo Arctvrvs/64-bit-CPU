@@ -1,3 +1,6 @@
+from .trace_utils import save_trace
+
+
 class Scoreboard:
     """Reference checker using the :class:`GoldenModel`."""
 
@@ -232,49 +235,8 @@ class Scoreboard:
         path : str
             Output file path.
         """
-        with open(path, "w", encoding="utf-8") as f:
-            header = [
-                "cycle",
-                "pc",
-                "instr",
-                "next_pc",
-                "rd_arch",
-                "rd_val",
-                "store_addr",
-                "store_data",
-                "load_addr",
-                "load_data",
-                "exception",
-                "branch_taken",
-                "branch_target",
-                "pred_taken",
-                "pred_target",
-                "mispredict",
-
-                "rob_idx",
-            ]
-            f.write(",".join(header) + "\n")
-            for entry in self.trace:
-                row = [
-                    entry.get("cycle"),
-                    entry.get("pc"),
-                    entry.get("instr"),
-                    entry.get("next_pc"),
-                    entry.get("rd_arch"),
-                    entry.get("rd_val"),
-                    entry.get("store_addr"),
-                    entry.get("store_data"),
-                    entry.get("load_addr"),
-                    entry.get("load_data"),
-                    entry.get("exception"),
-                    entry.get("branch_taken"),
-                    entry.get("branch_target"),
-                    entry.get("pred_taken"),
-                    entry.get("pred_target"),
-                    entry.get("mispredict"),
-                    entry.get("rob_idx"),
-                ]
-                f.write(",".join("" if v is None else str(v) for v in row) + "\n")
+        save_trace(self.trace, path)
+        return list(self.trace)
 
     def commit_bundle(
         self,
@@ -365,3 +327,26 @@ class Scoreboard:
 
         self.cycle += 1
         return results
+
+    def dump_coverage(self, path):
+        """Write coverage summary to *path* in JSON format and return it.
+
+        Parameters
+        ----------
+        path : str
+            Output file path.
+        """
+        if not self.coverage:
+            return {}
+        import json
+        summary = self.coverage.summary()
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(summary, f, indent=2)
+        return summary
+
+    def get_coverage_summary(self):
+        """Return the coverage summary without writing a file."""
+        if not self.coverage:
+            return {}
+        return self.coverage.summary()
+

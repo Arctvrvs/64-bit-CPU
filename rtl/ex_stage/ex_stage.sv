@@ -7,6 +7,11 @@
 // free pipelines for each unit so the issue queue knows what can be
 // dispatched next cycle.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module ex_stage(
     input  logic       clk,
     input  logic       rst_n,

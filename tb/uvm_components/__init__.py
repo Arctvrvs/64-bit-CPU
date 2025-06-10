@@ -5,6 +5,7 @@ from .data_memory_model import DataMemoryModel
 from .reset_generator import ResetGenerator
 from .dvfs_bfm import DVFSBFM
 from .coverage import CoverageModel
+from .trace_utils import save_trace, load_trace
 from rtl.lsu.lsu import LSU
 from rtl.lsu.vector_lsu import VectorLSU
 from rtl.ex_units.int_alu2 import IntALU2
@@ -19,3 +20,4 @@ from rtl.bp.branch_predictor_top import BranchPredictorTop
 from rtl.core_tile_2smts_8wide import CoreTile2SMT8Wide
 from rtl.riscv_soc_4core import RiscvSoC4Core
 from rtl.interconnect.directory_mesi import DirectoryMESI
+from rtl.top import Top

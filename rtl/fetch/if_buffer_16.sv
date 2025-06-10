@@ -4,6 +4,11 @@
 // instruction fetch stage from downstream decode. Two instructions
 // (64 bits) may be dequeued each cycle.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module if_buffer_16 (
     input  logic        clk,
     input  logic        rst_n,

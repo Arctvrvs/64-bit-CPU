@@ -401,15 +401,66 @@ class GoldenModel:
             self.step(instr)
         return self.pc
 
+    def _check_hazards(self, uops):
+        """Return a list of data hazards within *uops*.
+
+        Each entry is a dictionary ``{"type": str, "src": int, "dst": int, "reg": int}``
+        describing the hazard type (``"RAW"``, ``"WAR"`` or ``"WAW"``), the index of
+        the earlier instruction (``src``), the later conflicting instruction
+        (``dst``) and the affected register number.
+        """
+        hazards = []
+        writes = {}
+        reads = {}
+        for i, u in enumerate(uops):
+            opcode = u["opcode"]
+            rs = []
+            use_rs1 = opcode not in (0x37, 0x17, 0x6F)
+            use_rs2 = opcode in (0x33, 0x23, 0x63, 0x2F)
+            if use_rs1 and u["rs1"]:
+                rs.append(u["rs1"])
+            if use_rs2 and u["rs2"]:
+                rs.append(u["rs2"])
+            for r in rs:
+                reads.setdefault(r, []).append(i)
+                if r in writes:
+                    hazards.append({
+                        "type": "RAW",
+                        "src": writes[r],
+                        "dst": i,
+                        "reg": r,
+                    })
+            rd = u["rd"]
+            if rd:
+                if rd in writes:
+                    hazards.append({
+                        "type": "WAW",
+                        "src": writes[rd],
+                        "dst": i,
+                        "reg": rd,
+                    })
+                for r_idx in reads.get(rd, []):
+                    if r_idx < i:
+                        hazards.append({
+                            "type": "WAR",
+                            "src": r_idx,
+                            "dst": i,
+                            "reg": rd,
+                        })
+                writes[rd] = i
+        return hazards
+
     def issue_bundle(self, pc, instructions, *, coverage=None):
         """Decode and execute up to eight instructions starting at *pc*.
 
-        Returns a tuple ``(uops, next_pc)`` where ``uops`` is the list of
-        decoded micro-operations produced by :class:`Decoder8W` and ``next_pc``
-        is the PC after executing the bundle.
+        Returns ``(uops, next_pc, hazards)`` where ``uops`` is the list of
+        decoded micro-operations produced by :class:`Decoder8W`, ``next_pc`` is
+        the program counter after executing the bundle and ``hazards`` lists any
+        RAW/WAR/WAW hazards detected between the instructions.
         """
         self.pc = pc
         decoder = Decoder8W()
         uops = decoder.decode(instructions, coverage=coverage)
+        hazards = self._check_hazards(uops)
         next_pc = self.execute_bundle(instructions)
-        return uops, next_pc
+        return uops, next_pc, hazards

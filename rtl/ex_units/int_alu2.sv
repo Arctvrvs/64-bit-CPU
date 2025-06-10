@@ -4,6 +4,11 @@
 // execute stages. Each pipe accepts operands and an ALU operation code and
 // returns the result along with destination register bookkeeping.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module int_alu2 (
     input  logic        clk,
     input  logic        rst_n,

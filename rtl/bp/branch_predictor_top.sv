@@ -4,6 +4,11 @@
 // predictor and return stack buffer.  Used by the fetch stage to
 // select the next program counter and track branch outcomes.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module branch_predictor_top #(
     parameter int ENTRIES = 32
 ) (

@@ -3,6 +3,11 @@
 // Purpose: Stores return addresses for predicting RET instructions.
 // Provides push and pop operations with wrap-around behavior.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module rsb32 (
     input  logic        clk,
     input  logic        rst_n,

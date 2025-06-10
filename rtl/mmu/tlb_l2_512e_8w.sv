@@ -1,6 +1,11 @@
 // tlb_l2_512e_8w.sv - 512-entry 8-way level 2 TLB
 // Behavioral placeholder providing simple associative lookup
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module tlb_l2_512e_8w (
     input  logic        clk,
     input  logic        rst_n,

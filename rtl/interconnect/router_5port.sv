@@ -4,6 +4,11 @@
 // Each port has a valid/packet input and ready/valid output. This stub
 // simply forwards inputs to outputs of the same index when ready.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module router_5port (
     input  logic        clk,
     input  logic        rst_n,

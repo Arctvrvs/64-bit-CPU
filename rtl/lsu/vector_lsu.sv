@@ -4,6 +4,11 @@
 // placeholder only supports sequential addresses and ignores memory
 // ordering. It is intended for early vector pipeline bring-up.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module vector_lsu (
     input  logic        clk,
     input  logic        rst_n,

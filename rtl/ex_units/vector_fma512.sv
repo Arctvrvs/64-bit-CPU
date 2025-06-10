@@ -3,6 +3,11 @@
 // Purpose: Executes vector FMA operations across eight 64-bit lanes.
 // Placeholder 5-stage pipeline producing results after five cycles.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module vector_fma512 (
     input  logic        clk,
     input  logic        rst_n,

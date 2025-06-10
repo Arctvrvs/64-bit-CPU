@@ -5,6 +5,11 @@
 // by an internal memory array. This module is a minimal stand-in for
 // development and does not implement tags, replacement or miss logic.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module l1_dcache_64k_8w #(
     parameter int LINE_BYTES = 64,
     parameter int ASSOC      = 8,

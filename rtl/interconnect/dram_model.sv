@@ -1,5 +1,10 @@
 // dram_model.sv - Tiny behavioral DRAM
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module dram_model (
     input  logic        clk,
     input  logic        req_valid,

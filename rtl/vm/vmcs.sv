@@ -4,6 +4,11 @@
 // active. This simple stub allows turning virtualization on/off and
 // reading the active VMID.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module vmcs (
     input  logic       clk,
     input  logic       rst_n,

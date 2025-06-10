@@ -3,6 +3,11 @@
 // Each request is translated using an internal associative array. This model
 // returns a result in a single cycle and does not perform real page table walks.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module page_walker8 (
     input  logic        clk,
     input  logic        rst_n,

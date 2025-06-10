@@ -4,6 +4,11 @@
 // prediction using multiple 2-bit counter tables indexed by PC
 // and simple history hashing.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module tage5 (
     input  logic        clk,
     input  logic        rst_n,

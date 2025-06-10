@@ -4,6 +4,11 @@
 // the decode and rename stages. The module provides one synchronous write
 // port and three asynchronous read ports.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module arch_regfile_32x64 (
     input  logic        clk,
     input  logic        rst_n,

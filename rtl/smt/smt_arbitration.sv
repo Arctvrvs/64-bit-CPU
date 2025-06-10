@@ -1,5 +1,10 @@
 // smt_arbitration.sv - simple round-robin SMT scheduler for two threads
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module smt_arbitration(
     input logic clk,
     input logic rst_n,

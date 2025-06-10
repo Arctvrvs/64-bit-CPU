@@ -3,6 +3,11 @@
 // Purpose: raise a fault when supervisor accesses user pages without override
 // according to SMEP (execute) and SMAP (data) settings.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module smep_smap_check(
     input  logic is_kernel_i,
     input  logic va_user_i,

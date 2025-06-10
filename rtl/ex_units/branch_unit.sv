@@ -5,6 +5,11 @@
 // comparing the result against the predicted target to detect
 // mispredictions.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module branch_unit(
     input  logic        clk,
     input  logic        rst_n,

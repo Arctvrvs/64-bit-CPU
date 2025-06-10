@@ -1,4 +1,9 @@
 // directory_mesi.sv - MESI directory placeholder
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module directory_mesi (
     input  logic        clk,
     input  logic        rst_n,
