@@ -1,6 +1,11 @@
 // page_walker.sv - Placeholder page table walker
 // Performs a simple lookup using an internal associative array
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module page_walker (
     input  logic        clk,
     input  logic        rst_n,

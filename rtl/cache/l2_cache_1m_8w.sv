@@ -1,4 +1,9 @@
 // l2_cache_1m_8w.sv - 1 MB 8-way unified L2 cache placeholder
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module l2_cache_1m_8w (
     input  logic        clk,
     input  logic        rst_n,

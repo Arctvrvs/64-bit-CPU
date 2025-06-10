@@ -4,6 +4,11 @@
 // pipeline. Supports two independent read ports and tracks misses via
 // a small MSHR. This is a behavioral placeholder model.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module l1_icache_64k_8w #(
     parameter int LINE_BYTES  = 64,
     parameter int ASSOC       = 8,

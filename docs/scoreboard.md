@@ -75,18 +75,41 @@ list of commit dictionaries for post-processing.  Each dictionary contains
 `cycle`, `pc`, `next_pc`, `rd_arch`, `rd_val`, optional store or load
 information, and any `exception` string.
 
-Use `dump_trace(path)` to write the collected trace to a CSV file that
-can be compared with other reference traces or inspected manually.
+Use `dump_trace(path)` to write the collected trace to a CSV file.  The
+method delegates to `trace_utils.save_trace()` so the file is compatible
+with `trace_utils.load_trace()` for round‑trip testing. The returned list
+matches `get_trace()`:
 
 ```python
 sb.commit(0x00500093, rd_arch=1, rd_val=5)
-sb.dump_trace("trace.csv")
+trace = sb.dump_trace("trace.csv")
+print(len(trace))
 ```
 
 The CSV contains a ``rob_idx`` column when commit ordering is checked.
 
+If a ``CoverageModel`` was supplied, call `dump_coverage(path)` to
+write the coverage summary to a JSON file. The method also returns the
+summary dictionary for convenience:
+
+```python
+summary = sb.dump_coverage("coverage.json")
+```
+
+Use `get_coverage_summary()` to obtain the same dictionary without writing a
+file:
+
+```python
+summary = sb.get_coverage_summary()
+print(summary)
+```
+
+When the scoreboard was created without a ``CoverageModel`` this helper
+returns an empty dictionary.
+
 Use `reset()` to clear the trace and restart the golden model if a test needs
-to run multiple sequences from a fresh PC.
+to run multiple sequences from a fresh PC.  When a coverage model is attached,
+the counters are cleared as well so each run starts with fresh statistics.
 
 To retire multiple instructions in the same cycle use `commit_bundle()`:
 

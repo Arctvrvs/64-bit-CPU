@@ -4,6 +4,10 @@
 // provides four synchronous write ports and six asynchronous read ports to
 // support up to eight instructions in flight each cycle.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
 (* clock_gating_cell = "yes" *)
 module phys_regfile_128x64 (
     input  logic        clk,

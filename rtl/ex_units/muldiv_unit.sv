@@ -6,6 +6,11 @@
 // associated destination register and ROB index after the
 // appropriate latency.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module muldiv_unit #(
     parameter int MUL_STAGES = 3,
     parameter int DIV_STAGES = 20

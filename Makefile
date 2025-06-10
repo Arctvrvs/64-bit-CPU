@@ -1,14 +1,14 @@
-# Simple Makefile to build the advanced CPU testbench
+# Project Makefile
 
-VERILOG_FILES=$(wildcard Verilog/*.v)
+PYTEST=./scripts/run_tests.sh
 
-default: run
+.PHONY: test clean
 
-cpu64_tb: $(VERILOG_FILES)
-	iverilog -o cpu64_tb $(VERILOG_FILES)
+default: test
 
-run: cpu64_tb
-	vvp cpu64_tb
+# Run the Python test suite
+test:
+	$(PYTEST)
 
 clean:
-	rm -f cpu64_tb
+	rm -rf build *.vvp cpu64_tb

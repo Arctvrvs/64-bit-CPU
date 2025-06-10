@@ -7,6 +7,11 @@
 // register x0 always maps to physical register 0 and never consumes a
 // free register.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module rename_unit_8wide (
     input  logic        clk,
     input  logic        rst_n,

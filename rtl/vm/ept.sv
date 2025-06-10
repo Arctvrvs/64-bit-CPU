@@ -4,6 +4,11 @@
 // using a per-VM XOR key. This is a minimal stand-in for virtualization
 // experiments.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module ept #(
     parameter logic [63:0] VM_KEYS[256] = '{default:64'h0}
 ) (

@@ -416,13 +416,27 @@ class GoldenModelTest(unittest.TestCase):
         gm = GoldenModel(coverage=cov)
         insts = [0x00500093,  # addi x1,x0,5
                  0x00a00113]  # addi x2,x0,10
-        uops, next_pc = gm.issue_bundle(0, insts, coverage=cov)
+        uops, next_pc, hazards = gm.issue_bundle(0, insts, coverage=cov)
         self.assertEqual(len(uops), 2)
         self.assertEqual(gm.regs[1], 5)
         self.assertEqual(gm.regs[2], 10)
         self.assertEqual(next_pc, 8)
+        self.assertEqual(hazards, [])
         summ = cov.summary()
         self.assertGreaterEqual(summ['opcodes'], 1)
+
+    def test_issue_bundle_hazard_detection(self):
+        gm = GoldenModel()
+        insts = [
+            0x00100093,  # addi x1,x0,1
+            0x00008133,  # add x2,x1,x0 (RAW hazard on x1)
+            0x00200093,  # addi x1,x0,2 (WAW hazard on x1)
+        ]
+        uops, next_pc, hazards = gm.issue_bundle(0, insts)
+        self.assertEqual(next_pc, 12)
+        self.assertEqual(len(hazards), 3)
+        types = sorted(h['type'] for h in hazards)
+        self.assertEqual(types, ['RAW', 'WAR', 'WAW'])
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,6 +3,11 @@
 // For now this model behaves like a large backing memory with a single cycle
 // response. Directory and coherence logic are omitted.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module l3_cache_16m_8w (
     input  logic        clk,
     input  logic        rst_n,

@@ -1,9 +1,11 @@
 import os
 import sys
 import unittest
+import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from tb.uvm_components import Scoreboard
+from tb.uvm_components.trace_utils import load_trace
 from tb.uvm_components.coverage import CoverageModel
 from rtl.isa.golden_model import GoldenModel
 
@@ -121,11 +123,52 @@ class ScoreboardTest(unittest.TestCase):
         self.assertEqual(trace[1]["cycle"], 0)
         self.assertEqual(sb.cycle, 1)
 
+    def test_commit_bundle_8wide(self):
+        sb = Scoreboard()
+        instrs = [
+            0x00100093,
+            0x00200113,
+            0x00300193,
+            0x00400213,
+            0x00500293,
+            0x00600313,
+            0x00700393,
+            0x00800413,
+        ]
+        rd_arch = list(range(1, 9))
+        rd_val = list(range(1, 9))
+        results = sb.commit_bundle(
+            instrs,
+            rd_arch_list=rd_arch,
+            rd_val_list=rd_val,
+            next_pc_list=[4 * (i + 1) for i in range(8)],
+            rob_idx_list=list(range(8)),
+        )
+        self.assertEqual(results, [True] * 8)
+        self.assertEqual(len(sb.get_trace()), 8)
+        for entry in sb.get_trace():
+            self.assertEqual(entry["cycle"], 0)
+        self.assertEqual(sb.cycle, 1)
+
     def test_commit_order(self):
         sb = Scoreboard()
         self.assertTrue(sb.commit(0x00500093, rd_arch=1, rd_val=5, next_pc=4, rob_idx=0))
         self.assertTrue(sb.commit(0x00300113, rd_arch=2, rd_val=3, next_pc=8, rob_idx=1))
         self.assertFalse(sb.commit(0x00000013, rd_arch=0, rd_val=0, next_pc=12, rob_idx=1))
+
+    def test_commit_bundle_order(self):
+        sb = Scoreboard()
+        instrs1 = [0x00100093, 0x00200113]
+        instrs2 = [0x00300193, 0x00400213]
+        res1 = sb.commit_bundle(instrs1, rd_arch_list=[1, 2], rd_val_list=[1, 2], rob_idx_list=[0, 1])
+        self.assertEqual(res1, [True, True])
+        res2 = sb.commit_bundle(instrs2, rd_arch_list=[3, 4], rd_val_list=[3, 4], rob_idx_list=[2, 3])
+        self.assertEqual(res2, [True, True])
+        self.assertEqual(sb.expected_rob_idx, 4)
+        sb.reset()
+        sb.commit_bundle(instrs1, rd_arch_list=[1, 2], rd_val_list=[1, 2], rob_idx_list=[0, 1])
+        res_bad = sb.commit_bundle(instrs2, rd_arch_list=[3, 4], rd_val_list=[3, 4], rob_idx_list=[2, 4])
+        self.assertEqual(res_bad, [True, False])
 
     def test_reset(self):
         sb = Scoreboard()
@@ -223,12 +266,41 @@ class ScoreboardTest(unittest.TestCase):
         sb = Scoreboard()
         sb.commit(0x00500093, rd_arch=1, rd_val=5, next_pc=4)
         trace_file = os.path.join(os.path.dirname(__file__), "trace.csv")
-        sb.dump_trace(trace_file)
+        returned = sb.dump_trace(trace_file)
         with open(trace_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
         os.remove(trace_file)
         self.assertTrue(lines[0].strip().endswith("rob_idx"))
         self.assertEqual(len(lines), 2)
+        self.assertEqual(returned, sb.get_trace())
+
+    def test_dump_trace_round_trip(self):
+        sb = Scoreboard()
+        sb.commit(0x00500093, rd_arch=1, rd_val=5, next_pc=4)
+        tmp = os.path.join(os.path.dirname(__file__), "trace_rt.csv")
+        ret = sb.dump_trace(tmp)
+        loaded = load_trace(tmp)
+        os.remove(tmp)
+        self.assertEqual(loaded, ret)
+
+    def test_dump_coverage(self):
+        cov = CoverageModel()
+        sb = Scoreboard(coverage=cov)
+        sb.commit(0x00500093, rd_arch=1, rd_val=5, next_pc=4)
+        tmp = os.path.join(os.path.dirname(__file__), "cov.json")
+        summary = sb.dump_coverage(tmp)
+        with open(tmp, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        os.remove(tmp)
+        self.assertEqual(data["opcodes"], 1)
+        self.assertEqual(summary["opcodes"], 1)
+
+    def test_dump_coverage_no_model(self):
+        sb = Scoreboard()
+        tmp = os.path.join(os.path.dirname(__file__), "no_cov.json")
+        summary = sb.dump_coverage(tmp)
+        self.assertEqual(summary, {})
+        self.assertFalse(os.path.exists(tmp))
 
     def test_coverage_hook(self):
         cov = CoverageModel()
@@ -259,6 +331,27 @@ class ScoreboardTest(unittest.TestCase):
         self.assertEqual(summary["exceptions"]["illegal"], 1)
         self.assertEqual(summary["branches"], 2)
         self.assertEqual(summary["mispredicts"], 1)
+
+    def test_reset_clears_coverage(self):
+        cov = CoverageModel()
+        sb = Scoreboard(coverage=cov)
+        sb.commit(0x00500093, rd_arch=1, rd_val=5, next_pc=4)
+        self.assertEqual(cov.summary()["opcodes"], 1)
+        sb.reset()
+        self.assertEqual(cov.summary()["opcodes"], 0)
+
+    def test_get_coverage_summary(self):
+        cov = CoverageModel()
+        sb = Scoreboard(coverage=cov)
+        sb.commit(0x00500093, rd_arch=1, rd_val=5, next_pc=4)
+        summary = sb.get_coverage_summary()
+        self.assertEqual(summary["opcodes"], 1)
+
+    def test_get_coverage_summary_no_model(self):
+        sb = Scoreboard()
+        sb.commit(0x00500093, rd_arch=1, rd_val=5, next_pc=4)
+        summary = sb.get_coverage_summary()
+        self.assertEqual(summary, {})
 
 
 if __name__ == "__main__":

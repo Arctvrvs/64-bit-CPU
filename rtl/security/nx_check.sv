@@ -3,6 +3,11 @@
 // Purpose: Raises a fault when instruction fetch occurs to a page marked
 // non-executable. Simple combinational logic with one-cycle latency.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module nx_check(
     input  logic fetch_valid_i,
     input  logic nx_flag_i,

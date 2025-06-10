@@ -3,6 +3,11 @@
 // Purpose: Predict branch targets for the fetch stage. This is a behavioral
 // placeholder with simple associative lookup and update logic.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module btb4096_8w (
     input  logic        clk,
     input  logic        rst_n,

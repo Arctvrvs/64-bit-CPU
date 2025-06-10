@@ -4,6 +4,11 @@
 // order. Simplified placeholder supporting up to eight allocations and
 // eight writebacks per cycle.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module rob256 (
     input  logic        clk,
     input  logic        rst_n,

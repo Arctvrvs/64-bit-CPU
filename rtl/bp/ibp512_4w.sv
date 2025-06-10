@@ -3,6 +3,11 @@
 // Purpose: Simple associative table that predicts the target of
 // indirect branches based on a hash of the PC and last target.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module ibp512_4w (
     input  logic        clk,
     input  logic        rst_n,

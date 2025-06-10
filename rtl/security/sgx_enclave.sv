@@ -4,6 +4,11 @@
 // It keeps a bitmap of allocated enclave pages and raises a fault when
 // accessing memory outside the enclave while active.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module sgx_enclave (
     input  logic        clk,
     input  logic        rst_n,

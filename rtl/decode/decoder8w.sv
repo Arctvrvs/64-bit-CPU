@@ -5,6 +5,11 @@
 // is a simplified placeholder that supports a minimal subset of RV64I
 // instructions for early integration testing.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module decoder8w (
     input  logic         clk,
     input  logic         rst_n,

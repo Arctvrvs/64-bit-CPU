@@ -38,5 +38,5 @@ a dictionary based memory and the current program counter. The `step` method
 decodes and executes a single 32‑bit instruction. The helper
 `execute_bundle()` function can process a list of instructions.  The higher
 level helper `issue_bundle(pc, insts)` decodes up to eight instructions using
-`Decoder8W`, executes them and returns both the decoded µops and the next
-program counter.
+`Decoder8W`, executes them and returns the decoded µops, the next program
+counter **and** a list of RAW/WAR/WAW hazards detected within the bundle.

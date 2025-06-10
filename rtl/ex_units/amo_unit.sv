@@ -5,6 +5,11 @@
 // single cycle. Memory access sequencing is expected to be managed by the
 // load/store unit.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module amo_unit(
     input  logic        clk,
     input  logic        rst_n,

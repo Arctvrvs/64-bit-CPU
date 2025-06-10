@@ -3,6 +3,11 @@
 // Purpose: XORs read and write data with a per-VM key. Used to model AMD
 // SEV style memory encryption for early testing.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module sev_memory (
     input  logic [63:0] key_i,
     input  logic [63:0] data_in_i,

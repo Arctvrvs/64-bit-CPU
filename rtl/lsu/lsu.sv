@@ -4,6 +4,11 @@
 // with the L1 data cache. This simplified model completes every
 // request in a single cycle using the backing cache.
 
+// Parameters: none
+// Inputs: see port list below
+// Outputs: see port list below
+
+(* clock_gating_cell = "yes" *)
 module lsu (
     input  logic        clk,
     input  logic        rst_n,

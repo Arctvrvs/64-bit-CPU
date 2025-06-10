@@ -8,8 +8,9 @@ Implemented modules so far:
  - `golden_model` – minimal Python reference model with byte/half/word
    load/store support, SLT/SLTI ops, basic CSR instructions,
    floating-point add (`FADD.D`) and simple vector operations
-   (`vle64.v`, `vse64.v`, `vadd.vv`)
-   load/store support
+   (`vle64.v`, `vse64.v`, `vadd.vv`). The helper
+   `issue_bundle()` now reports basic RAW/WAR/WAW hazards in addition
+   to returning the decoded µops and updated PC.
 - `pc_fetch` – program counter generation for instruction fetch
 - `l1_icache_64k_8w` – placeholder for the L1 instruction cache with a small Python `L1ICache` model for tests
 - `if_buffer_16` – FIFO buffer between fetch and decode with a Python `IFBuffer16` helper
@@ -69,12 +70,27 @@ Implemented modules so far:
     indices, exception checking (illegal, misalign and page faults), optional
     load and store address/data verification, branch and prediction verification,
     optional coverage tracking (opcodes, exceptions and branch statistics),
-    and ability to export the trace as CSV
+-   and ability to export the trace as CSV or dump a coverage summary as JSON.
+    ``dump_trace()`` returns the list of entries for convenience and the
+    summary can also be obtained directly with ``get_coverage_summary()``.
+    When no coverage model is attached the helper returns an empty dictionary.
+    The resulting files can be parsed back with ``trace_utils.load_trace``
+- `trace_utils` – helper functions to load or save reference traces
 - `coverage_model` – lightweight functional coverage tracker used in tests
 - `rsb32` also accepts a `CoverageModel` to log underflow/overflow events
 - `regfile_bfm` – simple model that checks register file writes against
   the golden model
 - `core_tile_2smts_8wide` – wrapper for two-thread core (Python model available)
 - `riscv_soc_4core` – four-core SoC top (Python model available)
+- `top` – thin wrapper that instantiates `riscv_soc_4core` (Python model available)
+  and re-exported as `Top` from `tb.uvm_components` for convenience
 
 Development follows the tasks outlined in `docs/tasks/cpu.txt`.
+
+See `docs/verification_plan.md` for the current verification strategy and coverage goals.
+
+## Running Tests
+
+Execute `make test` to run the Python unit test suite. If the optional
+`pytest-cov` package is installed the command will also produce a simple
+coverage report on the console.
