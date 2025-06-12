@@ -2,6 +2,10 @@
 
 `sev_memory.sv` provides a placeholder for AMD SEV style memory encryption. It simply XORs data with a per-VM key when writing to or reading from DRAM.
 
+The Python :class:`~rtl.isa.golden_model.GoldenModel` integrates this stub so
+all memory accesses can be transparently encrypted during unit tests.  The key
+is configured with :py:meth:`GoldenModel.set_sev_key`.
+
 ## Ports
 
 | Name | Dir | Width | Description |

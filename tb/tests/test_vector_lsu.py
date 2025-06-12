@@ -12,3 +12,12 @@ def test_vector_lsu_load_store():
     data = int.from_bytes(bytes(range(8)), 'little')
     vlsu.store(base, data)
     assert vlsu.load(base) == data
+
+
+def test_vector_lsu_gather_scatter():
+    vlsu = VectorLSU()
+    base = 0x2000
+    idx = [7, 6, 5, 4, 3, 2, 1, 0]
+    data = int.from_bytes(bytes(range(10, 18)), "little")
+    vlsu.scatter(base, idx, 3, data)
+    assert vlsu.gather(base, idx, 3) == data

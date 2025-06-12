@@ -74,6 +74,27 @@ class CoverageModelTest(unittest.TestCase):
         self.assertEqual(summary['page_walks'], 3)
         self.assertEqual(summary['page_walk_faults'], 2)
 
+    def test_save_and_load_summary(self):
+        cov = CoverageModel()
+        cov.record_opcode(0x33)
+        path = os.path.join(os.path.dirname(__file__), 'cov_tmp.json')
+        cov.save_summary(path)
+        loaded = CoverageModel.load_summary(path)
+        os.remove(path)
+        self.assertEqual(loaded['opcodes'], 1)
+
+    def test_merge(self):
+        cov1 = CoverageModel()
+        cov2 = CoverageModel()
+        cov1.record_opcode(0x33)
+        cov2.record_opcode(0x13)
+        cov2.record_branch(mispredict=True)
+        cov1.merge(cov2)
+        summary = cov1.summary()
+        self.assertEqual(summary['opcodes'], 2)
+        self.assertEqual(summary['branches'], 1)
+        self.assertEqual(summary['mispredicts'], 1)
+
 
 if __name__ == '__main__':
     unittest.main()

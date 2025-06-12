@@ -2,7 +2,8 @@
 
 The scoreboard collects a cycle by cycle trace of retired instructions. Each
 entry contains the program counter, writeback information and optional load or
-store details. The trace can be exported to CSV or loaded back for analysis.
+store details. The trace can be exported to CSV or JSON and loaded back for
+analysis.
 
 The CSV header is:
 
@@ -17,15 +18,19 @@ from tb.uvm_components.scoreboard import Scoreboard
 sb = Scoreboard()
 ...
 sb.dump_trace("trace.csv")  # internally calls ``trace_utils.save_trace``
+sb.dump_trace_json("trace.json")
 ```
 
 The companion helpers in `trace_utils.py` can parse the CSV back into a list of
 dictionaries:
 
 ```python
-from tb.uvm_components.trace_utils import load_trace
+from tb.uvm_components.trace_utils import load_trace, load_trace_json
 entries = load_trace("trace.csv")
+entries_json = load_trace_json("trace.json")
 ```
 
 `save_trace()` performs the inverse operation and is useful when constructing
-expected traces for comparison in unit tests.
+expected traces for comparison in unit tests.  The complementary helpers
+`save_trace_json()` and `load_trace_json()` provide the same functionality for
+JSON files.
