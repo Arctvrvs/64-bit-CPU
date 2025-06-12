@@ -14,6 +14,16 @@ class AmoUnitTest(unittest.TestCase):
         res_swap = au.compute(5, 9, AmoUnit.AMO_SWAP)
         self.assertEqual(res_swap, 9)
 
+    def test_other_ops(self):
+        au = AmoUnit()
+        self.assertEqual(au.compute(0xF0, 0x0F, AmoUnit.AMO_XOR), 0xFF)
+        self.assertEqual(au.compute(0xF0, 0x0F, AmoUnit.AMO_OR), 0xFF)
+        self.assertEqual(au.compute(0xF0, 0x0F, AmoUnit.AMO_AND), 0x00)
+        self.assertEqual(au.compute(5, 10, AmoUnit.AMO_MIN), 5)
+        self.assertEqual(au.compute(5, 10, AmoUnit.AMO_MAX), 10)
+        self.assertEqual(au.compute(5, 10, AmoUnit.AMO_MINU), 5)
+        self.assertEqual(au.compute(5, 10, AmoUnit.AMO_MAXU), 10)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,6 +20,10 @@ cov.record_immediate(0x123)
 cov.record_page_walk(fault=False)
 cov.record_exception('illegal')
 cov.record_branch(mispredict=False)
+cov.record_vector_load()
+cov.record_vector_store()
+cov.record_vector_gather()
+cov.record_vector_scatter()
 report = cov.summary()
 print(report['branches'], report['mispredicts'])
 
@@ -37,12 +41,22 @@ the count of branch predictor entries, cache hits and misses, TLB hits and
 misses, TLB permission faults, recorded TLB lookup latencies, the total number of branch instructions
 executed and how many of those were mispredicted, how many unique immediate
 values were observed, the number of RSB overflows and underflows, page walk counts
-and faults, and a tally of any exceptions recorded. The model
+and faults, counts of vector loads and stores, gather/scatter operations,
+and a tally of any exceptions recorded. The model
 intentionally keeps statistics simple so unit tests can assert coverage results
 without a full UVM environment.
 
 Call `reset()` to clear all counters so a single instance can track multiple
 test sequences.
+
+``CoverageModel`` can also export its summary directly to JSON using
+``save_summary(path)`` and the static ``load_summary(path)`` helper returns
+the dictionary from a previously saved file.
+
+Multiple runs can be combined by calling ``merge()`` with another
+``CoverageModel`` instance. All counters accumulate and sets of opcodes and
+immediates are unified so overall coverage can be reported across test
+suites.
 
 The MMU helper classes ``TlbL1`` and ``TlbL2`` accept an optional
 ``CoverageModel`` instance. When provided, every lookup records hits,

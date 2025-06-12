@@ -21,4 +21,8 @@ The module tracks a counter of outstanding fences. Each `fence_i` pulse
 increments the counter, and each `retire_branch_i` pulse decrements it
 if non-zero. `allow_load_o` is asserted only when no fences are pending.
 
+In the Python golden model the fence is triggered by the synthetic
+`SPEC_FENCE` instruction (`0x0000200F`). Loads executed while a fence is
+pending raise a `"spec"` exception until a branch instruction retires.
+
 A simple Python model is provided for unit tests.

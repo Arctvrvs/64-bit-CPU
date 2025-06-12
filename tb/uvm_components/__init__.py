@@ -5,7 +5,12 @@ from .data_memory_model import DataMemoryModel
 from .reset_generator import ResetGenerator
 from .dvfs_bfm import DVFSBFM
 from .coverage import CoverageModel
-from .trace_utils import save_trace, load_trace
+from .trace_utils import (
+    save_trace,
+    load_trace,
+    save_trace_json,
+    load_trace_json,
+)
 from rtl.lsu.lsu import LSU
 from rtl.lsu.vector_lsu import VectorLSU
 from rtl.ex_units.int_alu2 import IntALU2

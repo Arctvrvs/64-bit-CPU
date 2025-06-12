@@ -20,6 +20,10 @@ class CoverageModel:
         self.mispredicts = 0
         self.page_walks = 0
         self.page_walk_faults = 0
+        self.vector_loads = 0
+        self.vector_stores = 0
+        self.vector_gathers = 0
+        self.vector_scatters = 0
 
     def reset(self):
         """Clear all collected coverage statistics."""
@@ -112,6 +116,22 @@ class CoverageModel:
         if fault:
             self.page_walk_faults += 1
 
+    def record_vector_load(self):
+        """Record a vector load operation."""
+        self.vector_loads += 1
+
+    def record_vector_store(self):
+        """Record a vector store operation."""
+        self.vector_stores += 1
+
+    def record_vector_gather(self):
+        """Record a vector gather operation."""
+        self.vector_gathers += 1
+
+    def record_vector_scatter(self):
+        """Record a vector scatter operation."""
+        self.vector_scatters += 1
+
     def opcode_coverage(self):
         """Return the set of unique opcodes seen."""
         return set(self.opcodes)
@@ -137,4 +157,57 @@ class CoverageModel:
             "mispredicts": self.mispredicts,
             "page_walks": self.page_walks,
             "page_walk_faults": self.page_walk_faults,
+            "vector_loads": self.vector_loads,
+            "vector_stores": self.vector_stores,
+            "vector_gathers": self.vector_gathers,
+            "vector_scatters": self.vector_scatters,
         }
+
+    def save_summary(self, path: str):
+        """Write the coverage summary to *path* as JSON."""
+
+        import json
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.summary(), f, indent=2)
+
+    @staticmethod
+    def load_summary(path: str):
+        """Return a summary dictionary loaded from *path*."""
+
+        import json
+
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def merge(self, other):
+        """Merge counters from another :class:`CoverageModel` ``other``."""
+
+        self.opcodes |= other.opcodes
+        self.btb_events |= other.btb_events
+        for t, entries in other.tage_events.items():
+            if t not in self.tage_events:
+                self.tage_events[t] = set()
+            self.tage_events[t].update(entries)
+        self.ibp_events |= other.ibp_events
+        for lvl in self.cache_hits:
+            self.cache_hits[lvl] += other.cache_hits[lvl]
+            self.cache_misses[lvl] += other.cache_misses[lvl]
+        for lvl in self.tlb_hits:
+            self.tlb_hits[lvl] += other.tlb_hits[lvl]
+            self.tlb_misses[lvl] += other.tlb_misses[lvl]
+            self.tlb_faults[lvl] += other.tlb_faults[lvl]
+            self.tlb_latency[lvl].extend(other.tlb_latency[lvl])
+        self.immediates |= other.immediates
+        self.rsb_underflow += other.rsb_underflow
+        self.rsb_overflow += other.rsb_overflow
+        for exc, cnt in other.exceptions.items():
+            self.exceptions[exc] = self.exceptions.get(exc, 0) + cnt
+        self.branches += other.branches
+        self.mispredicts += other.mispredicts
+        self.page_walks += other.page_walks
+        self.page_walk_faults += other.page_walk_faults
+        self.vector_loads += other.vector_loads
+        self.vector_stores += other.vector_stores
+        self.vector_gathers += other.vector_gathers
+        self.vector_scatters += other.vector_scatters

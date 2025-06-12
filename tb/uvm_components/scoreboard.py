@@ -1,4 +1,5 @@
 from .trace_utils import save_trace
+from .trace_utils import save_trace_json
 
 
 class Scoreboard:
@@ -19,7 +20,7 @@ class Scoreboard:
 
         from rtl.isa.golden_model import GoldenModel
 
-        self.gm = GoldenModel(pc=start_pc)
+        self.gm = GoldenModel(pc=start_pc, coverage=coverage)
         self.trace = []
         self.cycle = 0
         self.expected_rob_idx = start_rob_idx
@@ -55,6 +56,59 @@ class Scoreboard:
         self.actual.clear()
         if self.coverage:
             self.coverage.reset()
+
+    # ------------------------------------------------------------------
+    # Vector gather/scatter helpers
+    # ------------------------------------------------------------------
+    def check_gather(self, base, indices, scale, expected):
+        """Verify a gather load against the golden model.
+
+        Parameters
+        ----------
+        base : int
+            Base address for the vector load.
+        indices : list[int]
+            Per-lane index offsets.
+        scale : int
+            Log2 of the element size in bytes.
+        expected : int
+            512-bit value read by the RTL.
+
+        Returns
+        -------
+        bool
+            ``True`` if the golden model produces the same value and no
+            exception is raised.
+        """
+
+        vec = self.gm.gather(base, indices, scale)
+        exc = self.gm.get_last_exception()
+        if self.coverage:
+            if exc:
+                self.coverage.record_exception(exc)
+            else:
+                self.coverage.record_vector_gather()
+        return exc is None and vec == expected
+
+    def check_scatter(self, base, indices, scale, data):
+        """Verify a scatter store against the golden model."""
+
+        self.gm.scatter(base, indices, scale, data)
+        exc = self.gm.get_last_exception()
+        if self.coverage:
+            if exc:
+                self.coverage.record_exception(exc)
+            else:
+                self.coverage.record_vector_scatter()
+        if exc is not None:
+            return False
+        step = 1 << scale
+        for i in range(8):
+            addr = base + indices[i] * step
+            lane = (data >> (64 * i)) & 0xFFFFFFFFFFFFFFFF
+            if self.gm._mem_load(addr) != lane:
+                return False
+        return True
 
 
     def commit(
@@ -153,6 +207,10 @@ class Scoreboard:
                 sign = 1 << 20
                 imm = (imm & (sign - 1)) - (imm & sign)
             self.coverage.record_immediate(imm)
+            if opcode == 0x07:
+                self.coverage.record_vector_load()
+            elif opcode == 0x27:
+                self.coverage.record_vector_store()
         self.gm.step(instr)
         gm_exc = self.gm.get_last_exception()
         if self.coverage and gm_exc is not None:
@@ -171,10 +229,10 @@ class Scoreboard:
             if self.gm.regs[rd_arch] != rd_val:
                 ok = False
         if is_store and store_addr is not None:
-            if self.gm.mem.get(store_addr, 0) != store_data:
+            if self.gm._mem_load(store_addr) != store_data:
                 ok = False
         if is_load and load_addr is not None:
-            if self.gm.mem.get(load_addr, 0) != load_data:
+            if self.gm._mem_load(load_addr) != load_data:
                 ok = False
         if next_pc is not None and self.gm.pc != next_pc:
             ok = False
@@ -236,6 +294,11 @@ class Scoreboard:
             Output file path.
         """
         save_trace(self.trace, path)
+        return list(self.trace)
+
+    def dump_trace_json(self, path):
+        """Write the trace to *path* in JSON format and return it."""
+        save_trace_json(self.trace, path)
         return list(self.trace)
 
     def commit_bundle(

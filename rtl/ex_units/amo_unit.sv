@@ -16,7 +16,7 @@ module amo_unit(
     input  logic        valid_i,
     input  logic [63:0] op_a_i,
     input  logic [63:0] op_b_i,
-    input  logic [2:0]  amo_funct_i, // 0=add,1=swap
+    input  logic [4:0]  amo_funct_i, // funct5 field
     output logic        ready_o,
     output logic [63:0] result_o
 );
@@ -25,8 +25,15 @@ module amo_unit(
 
     always_comb begin
         case (amo_funct_i)
-            3'd0: result_next = op_a_i + op_b_i;  // AMOADD
-            3'd1: result_next = op_b_i;           // AMOSWAP
+            5'h00: result_next = op_a_i + op_b_i;  // AMOADD
+            5'h01: result_next = op_b_i;           // AMOSWAP
+            5'h04: result_next = op_a_i ^ op_b_i;  // AMOXOR
+            5'h08: result_next = op_a_i | op_b_i;  // AMOOR
+            5'h0C: result_next = op_a_i & op_b_i;  // AMOAND
+            5'h10: result_next = ($signed(op_a_i) < $signed(op_b_i)) ? op_a_i : op_b_i; // AMOMIN
+            5'h14: result_next = ($signed(op_a_i) > $signed(op_b_i)) ? op_a_i : op_b_i; // AMOMAX
+            5'h18: result_next = (op_a_i < op_b_i) ? op_a_i : op_b_i; // AMOMINU
+            5'h1C: result_next = (op_a_i > op_b_i) ? op_a_i : op_b_i; // AMOMAXU
             default: result_next = op_a_i;
         endcase
     end

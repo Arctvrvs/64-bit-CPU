@@ -3,7 +3,12 @@ project goals, task lists and interface specifications as development
 progresses.
 
 Module documentation:
-- [golden_model](golden_model.md) - Python reference with vector support
+ - [golden_model](golden_model.md) - Python reference with 64-bit and 32-bit integer
+   ALU operations, floating-point math (including `FMADD.D`, `FMSUB.D`, `FNMSUB.D`,
+   `FNMADD.D`, `FDIV.D`, `FMIN.D`/`FMAX.D`), vector multiply and fused multiply-add/subtract, gather/scatter,
+ optional virtualization via VMCS/EPT, NX/SMEP/SMAP checks, a simple SGX
+ enclave mode, SEV style memory encryption and optional Meltdown protection
+ controlled by `set_meltdown_protect()`
 - [pc_fetch](pc_fetch.md)
  - [l1_icache_64k_8w](l1_icache.md) - Python model with TLB translation
  - [if_buffer_16](if_buffer_16.md) - Python model
@@ -16,12 +21,12 @@ Module documentation:
 - [branch_unit](branch_unit.md) - Python model
 - [branch_predictor_top](branch_predictor_top.md) - Python model
 - [rsb32](rsb32.md)
-- [amo_unit](amo_unit.md) - Python model
+- [amo_unit](amo_unit.md) - Python model with full RV64A operations
 - [int_alu2](int_alu2.md) - Python model
 - [muldiv_unit](muldiv_unit.md) - Python model
 - [l1_dcache_64k_8w](l1_dcache_64k_8w.md)
  - [lsu](lsu.md) - Python model with TLB translation
-- [vector_lsu](vector_lsu.md)
+ - [vector_lsu](vector_lsu.md) - gather/scatter capable LSU model
 - [tlb_l1_64e_8w](tlb_l1_64e_8w.md)
 - [btb4096_8w](btb4096_8w.md)
 - [tage5](tage5.md)
@@ -53,7 +58,7 @@ Module documentation:
 - [ept](ept.md)
 - [nx_check](nx_check.md)
 - [scoreboard](scoreboard.md)
-- [reference_trace](reference_trace.md)
+- [reference_trace](reference_trace.md) – CSV or JSON trace helpers
 - [verification_plan](verification_plan.md)
 - [sgx_enclave](sgx_enclave.md)
 - [sev_memory](sev_memory.md)

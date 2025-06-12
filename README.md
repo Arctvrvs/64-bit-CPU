@@ -7,10 +7,29 @@ This repository contains an open source implementation of a high performance
 Implemented modules so far:
  - `golden_model` – minimal Python reference model with byte/half/word
    load/store support, SLT/SLTI ops, basic CSR instructions,
-   floating-point add (`FADD.D`) and simple vector operations
-   (`vle64.v`, `vse64.v`, `vadd.vv`). The helper
+  32-bit forms (`ADDW`, `SUBW`, `ADDIW`, `SLLIW`, `SRLIW`, `SRAIW`,
+  `SLLW`, `SRLW`, `SRAW`) alongside floating-point add (`FADD.D`),
+  subtract (`FSUB.D`), multiply (`FMUL.D`), divide (`FDIV.D`),
+  min/max (`FMIN.D`/`FMAX.D`), fused multiply-add and
+  subtract (`FMADD.D`, `FMSUB.D`, `FNMSUB.D`, `FNMADD.D`), simple vector operations
+  (`vle64.v`, `vse64.v`, `vadd.vv`, `vmul.vv`, `vfma.vv`, `vluxei64.v`, `vsuxei64.v`) and
+  gather/scatter helpers along with barrier and system instructions
+  (`FENCE`, `FENCE.I`, `ECALL`, `EBREAK`).
+  The helper
    `issue_bundle()` now reports basic RAW/WAR/WAW hazards in addition
    to returning the decoded µops and updated PC.
+  When the built-in `VMCS` is enabled memory accesses are translated
+  through the `EPT` stub for simple virtualization tests. The model also
+  enforces NX/SMEP/SMAP protections when page table entries mark user pages
+  or disable execute permission. An integrated `SGXEnclave` stub can
+  restrict memory accesses while enclave mode is active and triggers a
+  `"sgx"` exception on violations. A `SEVMemory` stub optionally encrypts
+  memory accesses with a per-VM key so tests can verify AMD SEV style
+  behavior. Loads normally enforce permissions before reading memory to
+  model Meltdown protection, but this can be disabled with
+  `set_meltdown_protect()` for experimentation.
+  Address translation uses small L1 and L2 TLB helpers backed by a page
+  walker model so coverage can track TLB hit/miss and walk events.
 - `pc_fetch` – program counter generation for instruction fetch
 - `l1_icache_64k_8w` – placeholder for the L1 instruction cache with a small Python `L1ICache` model for tests
 - `if_buffer_16` – FIFO buffer between fetch and decode with a Python `IFBuffer16` helper
@@ -25,7 +44,8 @@ Implemented modules so far:
 - `muldiv_unit` – pipelined multiply/divide unit (Python model available)
 - `branch_unit` – resolves branches and detects mispredictions (Python model available)
 - `branch_predictor_top` – simple branch predictor with tiny BTB (Python model available)
-- `amo_unit` – executes basic atomic operations (Python model available)
+- `amo_unit` – executes atomic operations (add, swap, xor, or, and,
+  min/max signed and unsigned) with a matching Python model
  - `l1_dcache_64k_8w` – simple two-port data cache model with
     accompanying Python `L1DCache` helper that can record cache hits and
     misses when given a `CoverageModel`
@@ -37,7 +57,7 @@ Implemented modules so far:
 - `tage5` – simple multi-table TAGE predictor
 - `ibp512_4w` – indirect branch predictor
 - `vector_fma512` – placeholder vector FMA unit (Python model available)
- - `vector_lsu` – simplified vector load/store unit
+ - `vector_lsu` – simplified vector load/store unit with gather/scatter support
  - `l2_cache_1m_8w` – stub L2 cache model with a Python `L2Cache` helper
     that logs hits and misses if supplied with a coverage instance
  - `tlb_l2_512e_8w` – level-2 TLB
@@ -69,14 +89,22 @@ Implemented modules so far:
     per-cycle commit trace, reset capability, commit order checking via ROB
     indices, exception checking (illegal, misalign and page faults), optional
     load and store address/data verification, branch and prediction verification,
-    optional coverage tracking (opcodes, exceptions and branch statistics),
--   and ability to export the trace as CSV or dump a coverage summary as JSON.
+   optional coverage tracking (opcodes, exceptions, branch statistics and
+   counters for vector loads/stores and gather/scatter operations),
+   support for vector gather/scatter checks and ability to export the trace as
+    CSV or JSON and dump a coverage summary as JSON. When virtualization is
+    active the scoreboard automatically translates addresses through the EPT
+    stub so load and store checks use host physical memory.
     ``dump_trace()`` returns the list of entries for convenience and the
     summary can also be obtained directly with ``get_coverage_summary()``.
     When no coverage model is attached the helper returns an empty dictionary.
-    The resulting files can be parsed back with ``trace_utils.load_trace``
-- `trace_utils` – helper functions to load or save reference traces
+    The resulting files can be parsed back with ``trace_utils.load_trace`` or
+    ``trace_utils.load_trace_json``.
+- `trace_utils` – helper functions to load or save reference traces in CSV or
+  JSON format
 - `coverage_model` – lightweight functional coverage tracker used in tests
+  that can save and load summary reports via `save_summary()` and
+  `load_summary()`
 - `rsb32` also accepts a `CoverageModel` to log underflow/overflow events
 - `regfile_bfm` – simple model that checks register file writes against
   the golden model

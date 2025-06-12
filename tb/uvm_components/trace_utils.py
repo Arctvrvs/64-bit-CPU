@@ -1,4 +1,5 @@
 import csv
+import json
 
 HEADER = [
     "cycle",
@@ -52,3 +53,15 @@ def load_trace(path):
             entry = {k: _parse_value(row.get(k, "")) for k in HEADER}
             entries.append(entry)
     return entries
+
+
+def save_trace_json(entries, path):
+    """Save *entries* to *path* in JSON format."""
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(entries, f, indent=2)
+
+
+def load_trace_json(path):
+    """Load a JSON trace file from *path* and return a list of entries."""
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
